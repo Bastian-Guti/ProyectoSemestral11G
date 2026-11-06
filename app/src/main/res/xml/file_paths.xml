@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- filesDir/fotos: fotos de las órdenes de trabajo -->
+    <files-path
+        name="fotos"
+        path="fotos/" />
+</paths>
