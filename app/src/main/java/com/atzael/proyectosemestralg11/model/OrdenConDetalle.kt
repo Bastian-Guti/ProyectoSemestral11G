@@ -11,6 +11,5 @@ data class OrdenConDetalle(
     val equipoUbicacion: String,
     val tecnicoNombre: String,
     val slaHoras: Int,
-    val localCiudad: String = "",
     val cantidadFotos: Int = 0
 )

@@ -1,6 +1,5 @@
 package com.atzael.proyectosemestralg11.viewmodel
 
-import com.atzael.proyectosemestralg11.data.ClimaRepository
 import com.atzael.proyectosemestralg11.data.EquipoDao
 import com.atzael.proyectosemestralg11.data.FotoDao
 import com.atzael.proyectosemestralg11.data.OrdenTrabajoDao
@@ -43,7 +42,6 @@ class TecnicoViewModelTest {
     private val fotoDao = mockk<FotoDao>(relaxed = true)
     private val equipoDao = mockk<EquipoDao>(relaxed = true)
     private val usuarioDao = mockk<UsuarioDao>(relaxed = true)
-    private val clima = mockk<ClimaRepository>(relaxed = true)
     private val testDispatcher = UnconfinedTestDispatcher()
 
     private fun orden(
@@ -72,7 +70,7 @@ class TecnicoViewModelTest {
         every { fotoDao.getByOrden(any()) } returns flowOf(emptyList())
         coEvery { usuarioDao.getUsuarioByRut("444444444") } returns
                 Usuario("444444444", "Juan", "Pérez", "juan", RolUsuario.TECNICO, avisoDatosAceptado = true)
-        viewModel = TecnicoViewModel(ordenDao, fotoDao, equipoDao, usuarioDao, clima)
+        viewModel = TecnicoViewModel(ordenDao, fotoDao, equipoDao, usuarioDao)
         viewModel.cargarUsuario("444444444")
     }
 
@@ -91,7 +89,7 @@ class TecnicoViewModelTest {
                 detalle(orden(4, EstadoOrden.FINALIZADA, PrioridadOrden.ALTA, 50))
             )
         )
-        viewModel = TecnicoViewModel(ordenDao, fotoDao, equipoDao, usuarioDao, clima)
+        viewModel = TecnicoViewModel(ordenDao, fotoDao, equipoDao, usuarioDao)
         backgroundScope.launch(testDispatcher) { viewModel.ordenes.collect { } }
 
         viewModel.cargarUsuario("444444444")

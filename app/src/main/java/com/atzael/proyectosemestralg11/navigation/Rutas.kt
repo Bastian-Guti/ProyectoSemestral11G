@@ -10,7 +10,6 @@ sealed class Rutas(val route: String) {
     data object FichaEquipo : Rutas("ficha_equipo/{id}") {
         fun createRoute(id: Int) = "ficha_equipo/$id"
     }
-    data object AlertasClima : Rutas("alertas_clima")
     data object Jefatura : Rutas("jefatura")
 
     data object PortalCliente : Rutas("portal_cliente")
@@ -46,4 +45,5 @@ sealed class Rutas(val route: String) {
     }
 
     data object Reportes : Rutas("reportes")
+    data object AlertasClima : Rutas("alertas_clima") // Reservada: todavía sin funcionalidad
 }

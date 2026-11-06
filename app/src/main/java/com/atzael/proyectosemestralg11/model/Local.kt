@@ -1,6 +1,5 @@
 package com.atzael.proyectosemestralg11.model
 
-import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -24,8 +23,5 @@ data class Local(
     val clienteId: Int,
     val nombre: String,
     val direccion: String,
-    val telefono: String,
-    // Ciudad del local: se usa para consultar el pronóstico del clima (HU-15)
-    @ColumnInfo(defaultValue = "''")
-    val ciudad: String = ""
+    val telefono: String
 )

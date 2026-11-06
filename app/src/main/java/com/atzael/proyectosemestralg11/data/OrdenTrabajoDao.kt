@@ -18,7 +18,6 @@ private const val SELECT_DETALLE = """
            e.ubicacion AS equipoUbicacion,
            COALESCE(u.nombre || ' ' || u.apellido, o.tecnicoRut) AS tecnicoNombre,
            c.slaHoras AS slaHoras,
-           l.ciudad AS localCiudad,
            (SELECT COUNT(*) FROM fotos_orden f WHERE f.ordenId = o.id) AS cantidadFotos
     FROM ordenes_trabajo o
     INNER JOIN clientes c ON c.id = o.clienteId

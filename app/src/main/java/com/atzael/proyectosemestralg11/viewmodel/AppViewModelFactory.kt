@@ -3,13 +3,8 @@ package com.atzael.proyectosemestralg11.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.atzael.proyectosemestralg11.data.AppDatabase
-import com.atzael.proyectosemestralg11.data.ClimaRepository
-import com.atzael.proyectosemestralg11.data.OpenMeteoClimaRepository
 
 class AppViewModelFactory(private val database: AppDatabase) : ViewModelProvider.Factory {
-
-    // Una sola instancia: guarda en memoria los pronósticos ya consultados
-    private val clima: ClimaRepository = OpenMeteoClimaRepository()
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -52,8 +47,7 @@ class AppViewModelFactory(private val database: AppDatabase) : ViewModelProvider
                     database.ordenTrabajoDao(),
                     database.fotoDao(),
                     database.equipoDao(),
-                    database.usuarioDao(),
-                    clima
+                    database.usuarioDao()
                 )
 
             modelClass.isAssignableFrom(FichaEquipoViewModel::class.java) ->
@@ -63,9 +57,6 @@ class AppViewModelFactory(private val database: AppDatabase) : ViewModelProvider
                     database.clienteDao(),
                     database.ordenTrabajoDao()
                 )
-
-            modelClass.isAssignableFrom(ClimaViewModel::class.java) ->
-                ClimaViewModel(database.ordenTrabajoDao(), clima)
 
             else -> throw IllegalArgumentException("ViewModel desconocido: ${modelClass.name}")
         }

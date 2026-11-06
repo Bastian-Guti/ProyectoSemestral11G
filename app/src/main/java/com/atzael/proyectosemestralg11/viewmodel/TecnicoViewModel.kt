@@ -2,7 +2,6 @@ package com.atzael.proyectosemestralg11.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.atzael.proyectosemestralg11.data.ClimaRepository
 import com.atzael.proyectosemestralg11.data.EquipoDao
 import com.atzael.proyectosemestralg11.data.FotoDao
 import com.atzael.proyectosemestralg11.data.OrdenTrabajoDao
@@ -18,7 +17,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -35,8 +33,7 @@ class TecnicoViewModel(
     private val ordenDao: OrdenTrabajoDao,
     private val fotoDao: FotoDao,
     private val equipoDao: EquipoDao,
-    private val usuarioDao: UsuarioDao,
-    private val clima: ClimaRepository
+    private val usuarioDao: UsuarioDao
 ) : ViewModel() {
 
     private val _rut = MutableStateFlow<String?>(null)
@@ -71,10 +68,6 @@ class TecnicoViewModel(
     private val _nombre = MutableStateFlow("")
     val nombre: StateFlow<String> = _nombre.asStateFlow()
 
-    // Alertas de clima por id de OT (HU-15)
-    private val _alertas = MutableStateFlow<Map<Int, String>>(emptyMap())
-    val alertas: StateFlow<Map<Int, String>> = _alertas.asStateFlow()
-
     // ---------- Fotos de la OT abierta en pantalla ----------
 
     private val _ordenSeleccionadaId = MutableStateFlow<Int?>(null)
@@ -105,15 +98,6 @@ class TecnicoViewModel(
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            todasLasOrdenes.collectLatest { lista ->
-                _alertas.value = AlertasClima.evaluarOrdenes(lista, clima).alertas
-                    .associate { it.orden.orden.id to it.mensaje }
-            }
-        }
-    }
 
     fun cargarUsuario(rut: String) {
         _rut.value = rut

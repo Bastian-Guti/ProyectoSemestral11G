@@ -17,6 +17,7 @@ import com.atzael.proyectosemestralg11.data.AppDatabase
 import com.atzael.proyectosemestralg11.model.RolUsuario
 import com.atzael.proyectosemestralg11.view.PortalClienteOrdenScreen
 import com.atzael.proyectosemestralg11.view.PortalClienteScreen
+import com.atzael.proyectosemestralg11.view.AlertasClimaScreen
 import com.atzael.proyectosemestralg11.view.ClienteFormScreen
 import com.atzael.proyectosemestralg11.view.ClientesScreen
 import com.atzael.proyectosemestralg11.view.EquipoFormScreen
@@ -31,10 +32,8 @@ import com.atzael.proyectosemestralg11.view.OrdenesScreen
 import com.atzael.proyectosemestralg11.view.RegisterScreen
 import com.atzael.proyectosemestralg11.view.ReportesScreen
 import com.atzael.proyectosemestralg11.view.TecnicoScreen
-import com.atzael.proyectosemestralg11.view.AlertasClimaScreen
 import com.atzael.proyectosemestralg11.view.FichaEquipoScreen
 import com.atzael.proyectosemestralg11.view.TecnicoOrdenScreen
-import com.atzael.proyectosemestralg11.viewmodel.ClimaViewModel
 import com.atzael.proyectosemestralg11.viewmodel.FichaEquipoViewModel
 import com.atzael.proyectosemestralg11.viewmodel.TecnicoViewModel
 import com.atzael.proyectosemestralg11.viewmodel.AppViewModelFactory
@@ -81,12 +80,10 @@ fun AppNavigation() {
     val portalClienteViewModel: PortalClienteViewModel = viewModel(factory = factory)
     val tecnicoViewModel: TecnicoViewModel = viewModel(factory = factory)
     val fichaEquipoViewModel: FichaEquipoViewModel = viewModel(factory = factory)
-    val climaViewModel: ClimaViewModel = viewModel(factory = factory)
 
     val rutActual by authViewModel.rutActual.collectAsState()
     val nombreActual by authViewModel.nombreActual.collectAsState()
     val clientesRegistrados by authViewModel.clientes.collectAsState()
-    val resultadoClima by climaViewModel.resultado.collectAsState()
 
     NavHost(navController = navController, startDestination = Rutas.Login.route) {
 
@@ -197,7 +194,6 @@ fun AppNavigation() {
                 onEquipos = { navController.navigate(Rutas.Equipos.route) },
                 onReportes = { navController.navigate(Rutas.Reportes.route) },
                 onAlertasClima = { navController.navigate(Rutas.AlertasClima.route) },
-                cantidadAlertasClima = resultadoClima.alertas.size,
                 onLogout = {
                     authViewModel.cerrarSesion()
                     ordenViewModel.limpiarFiltros()
@@ -247,13 +243,6 @@ fun AppNavigation() {
                     navController.navigate(Rutas.OrdenEdicion.createRoute(id))
                 },
                 onVerFicha = { equipoId -> navController.navigate(Rutas.FichaEquipo.createRoute(equipoId)) }
-            )
-        }
-        composable(Rutas.AlertasClima.route) {
-            AlertasClimaScreen(
-                viewModel = climaViewModel,
-                onBack = { navController.cerrarPantalla(Rutas.AlertasClima.route) },
-                onOrdenClick = { id -> navController.navigate(Rutas.OrdenDetalle.createRoute(id)) }
             )
         }
 
@@ -354,6 +343,11 @@ fun AppNavigation() {
                     navController.cerrarPantalla(Rutas.EquipoEdicion.route)
                 }
             )
+        }
+
+        // ---------- Alertas de clima (reservada, sin funcionalidad todavía) ----------
+        composable(Rutas.AlertasClima.route) {
+            AlertasClimaScreen(onBack = { navController.cerrarPantalla(Rutas.AlertasClima.route) })
         }
 
         // ---------- Reportes ----------

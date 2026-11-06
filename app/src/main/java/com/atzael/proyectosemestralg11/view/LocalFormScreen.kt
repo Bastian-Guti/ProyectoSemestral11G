@@ -39,7 +39,6 @@ fun LocalFormScreen(
     val nombre by viewModel.nombre.collectAsState()
     val direccion by viewModel.direccion.collectAsState()
     val telefono by viewModel.telefono.collectAsState()
-    val ciudad by viewModel.ciudad.collectAsState()
     val isButtonEnabled by viewModel.isButtonEnabled.collectAsState()
     val showToast by viewModel.showToast.collectAsState()
 
@@ -107,16 +106,6 @@ fun LocalFormScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 isError = telefonoError != null,
                 supportingText = { telefonoError?.let { Text(it) } }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedTextField(
-                value = ciudad,
-                onValueChange = { viewModel.onCiudadChange(it) },
-                label = { Text("Ciudad (opcional)") },
-                supportingText = { Text("Se usa para las alertas de lluvia y viento en equipos exteriores") },
-                modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(24.dp))

@@ -48,10 +48,6 @@ class LocalViewModel(
     private val _telefono = MutableStateFlow("")
     val telefono: StateFlow<String> = _telefono.asStateFlow()
 
-    // Opcional: sin ciudad no se pueden consultar alertas de clima para el local
-    private val _ciudad = MutableStateFlow("")
-    val ciudad: StateFlow<String> = _ciudad.asStateFlow()
-
     private val _clienteError = MutableStateFlow<String?>(null)
     val clienteError: StateFlow<String?> = _clienteError.asStateFlow()
 
@@ -101,10 +97,6 @@ class LocalViewModel(
         validate()
     }
 
-    fun onCiudadChange(newValue: String) {
-        _ciudad.value = newValue
-    }
-
     private fun validate() {
         _isButtonEnabled.value = _clienteId.value != null &&
                 _nombre.value.isNotBlank() &&
@@ -120,8 +112,7 @@ class LocalViewModel(
         clienteId = _clienteId.value!!,
         nombre = _nombre.value.trim(),
         direccion = _direccion.value.trim(),
-        telefono = _telefono.value.trim(),
-        ciudad = _ciudad.value.trim()
+        telefono = _telefono.value.trim()
     )
 
     fun registrarLocal(onSuccess: () -> Unit) {
@@ -145,7 +136,6 @@ class LocalViewModel(
                 _nombre.value = local.nombre
                 _direccion.value = local.direccion
                 _telefono.value = local.telefono
-                _ciudad.value = local.ciudad
                 limpiarErrores()
                 validate()
             }
@@ -193,7 +183,6 @@ class LocalViewModel(
         _nombre.value = ""
         _direccion.value = ""
         _telefono.value = ""
-        _ciudad.value = ""
         limpiarErrores()
         _isButtonEnabled.value = false
     }

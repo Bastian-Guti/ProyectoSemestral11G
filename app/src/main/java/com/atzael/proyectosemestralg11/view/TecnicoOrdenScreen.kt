@@ -14,7 +14,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -59,7 +58,6 @@ fun TecnicoOrdenScreen(
     val context = LocalContext.current
     val ordenes by viewModel.todasLasOrdenes.collectAsState()
     val fotos by viewModel.fotos.collectAsState()
-    val alertas by viewModel.alertas.collectAsState()
     val avisoAceptado by viewModel.avisoAceptado.collectAsState()
     val diagnostico by viewModel.diagnostico.collectAsState()
     val actividades by viewModel.actividades.collectAsState()
@@ -128,19 +126,6 @@ fun TecnicoOrdenScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(orden.estado, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
-
-                alertas[orden.id]?.let { alerta ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-                    ) {
-                        Text(
-                            text = "Alerta de clima: $alerta. Considere reprogramar con la jefatura.",
-                            modifier = Modifier.padding(12.dp),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
 
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {

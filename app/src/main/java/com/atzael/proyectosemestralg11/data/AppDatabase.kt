@@ -23,7 +23,7 @@ import com.atzael.proyectosemestralg11.model.Usuario
         Reprogramacion::class,
         FotoOrden::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -68,9 +68,7 @@ abstract class AppDatabase : RoomDatabase() {
             )
         }
 
-        // La app guarda el RUT sin puntos ni guion. Versiones anteriores lo guardaban tal como se
-        // escribía ("55555555-5"): se pasan al formato nuevo, y si el usuario quedó duplicado
-        // (con y sin guion) se conserva solo el normalizado.
+
         private fun normalizarRutsExistentes(db: SupportSQLiteDatabase) {
             fun norm(columna: String) = "UPPER(REPLACE(REPLACE($columna, '-', ''), '.', ''))"
 
@@ -102,7 +100,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "proyecto_database"
                 )
-                    // Las versiones 2 a 4 cambiaron el esquema. Sin migración: se recrean las tablas.
+                    // Las versiones 2 a 5 cambiaron el esquema. Sin migración: se recrean las tablas.
                     .fallbackToDestructiveMigration(true)
                     .addCallback(UsuariosDePrueba)
                     .build()

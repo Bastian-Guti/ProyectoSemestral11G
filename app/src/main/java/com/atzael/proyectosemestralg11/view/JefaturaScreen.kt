@@ -39,7 +39,6 @@ fun JefaturaScreen(
     onEquipos: () -> Unit,
     onReportes: () -> Unit,
     onAlertasClima: () -> Unit,
-    cantidadAlertasClima: Int,
     onLogout: () -> Unit
 ) {
     val ordenes by viewModel.ordenes.collectAsState()
@@ -88,16 +87,12 @@ fun JefaturaScreen(
                 Text("Crear orden de trabajo", style = MaterialTheme.typography.bodyLarge)
             }
 
-            OpcionMenu(
-                titulo = if (cantidadAlertasClima > 0) "Alertas de clima ($cantidadAlertasClima)" else "Alertas de clima",
-                descripcion = "Lluvia o viento fuerte antes de mantenciones en equipos exteriores",
-                onClick = onAlertasClima
-            )
             OpcionMenu("Órdenes de trabajo", "Supervisar, filtrar, reagendar y cancelar", onOrdenes)
             OpcionMenu("Clientes", "Registrar y mantener el catastro de clientes y su SLA", onClientes)
             OpcionMenu("Locales", "Locales comerciales de cada cliente", onLocales)
             OpcionMenu("Equipos", "Equipos de climatización y refrigeración", onEquipos)
             OpcionMenu("Reportes y SLA", "Tiempos de atención y cumplimiento por cliente", onReportes)
+            OpcionMenu("Alertas de clima", "Próximamente", onAlertasClima)
         }
     }
 }

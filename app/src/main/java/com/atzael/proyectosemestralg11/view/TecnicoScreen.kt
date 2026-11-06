@@ -11,8 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -43,7 +41,6 @@ fun TecnicoScreen(
     val nombre by viewModel.nombre.collectAsState()
     val ordenes by viewModel.ordenes.collectAsState()
     val verCerradas by viewModel.verCerradas.collectAsState()
-    val alertas by viewModel.alertas.collectAsState()
     val avisoAceptado by viewModel.avisoAceptado.collectAsState()
     val mensajeExito by viewModel.mensajeExito.collectAsState()
 
@@ -110,20 +107,6 @@ fun TecnicoScreen(
                     items(ordenes, key = { it.orden.id }) { item ->
                         Column {
                             TarjetaOrden(item = item, onClick = { onOrdenClick(item.orden.id) })
-                            alertas[item.orden.id]?.let { alerta ->
-                                Card(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 4.dp),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-                                ) {
-                                    Text(
-                                        text = "Alerta de clima: $alerta",
-                                        modifier = Modifier.padding(8.dp),
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
-                            }
                         }
                     }
                 }
