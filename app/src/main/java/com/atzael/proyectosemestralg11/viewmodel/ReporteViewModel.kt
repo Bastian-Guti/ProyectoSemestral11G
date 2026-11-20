@@ -13,6 +13,8 @@ import com.atzael.proyectosemestralg11.model.OrdenConDetalle
 import com.atzael.proyectosemestralg11.util.formatearDuracion
 import com.atzael.proyectosemestralg11.util.formatearFecha
 import com.atzael.proyectosemestralg11.util.formatearFechaHora
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -100,7 +102,9 @@ class ReporteViewModel(
     suspend fun rutasFotosDelReporte(): List<String> {
         val ids = resumen.value.filas.map { it.orden.orden.id }
         if (ids.isEmpty()) return emptyList()
-        return fotoDao.getByOrdenes(ids).map { it.ruta }.filter { java.io.File(it).exists() }
+        val rutas = fotoDao.getByOrdenes(ids).map { it.ruta }
+        // File.exists() es acceso a disco: se hace fuera del hilo principal
+        return withContext(Dispatchers.IO) { rutas.filter { java.io.File(it).exists() } }
     }
 
     // Texto del reporte para compartir con el cliente (HU-21)

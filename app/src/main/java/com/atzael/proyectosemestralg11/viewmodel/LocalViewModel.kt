@@ -6,6 +6,7 @@ import com.atzael.proyectosemestralg11.data.ClienteDao
 import com.atzael.proyectosemestralg11.data.LocalDao
 import com.atzael.proyectosemestralg11.model.Cliente
 import com.atzael.proyectosemestralg11.model.Local
+import com.atzael.proyectosemestralg11.util.enViewModelScope
 import com.atzael.proyectosemestralg11.util.esTelefonoValido
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -115,17 +116,21 @@ class LocalViewModel(
         telefono = _telefono.value.trim()
     )
 
-    fun registrarLocal(onSuccess: () -> Unit) {
-        if (_isButtonEnabled.value) {
-            viewModelScope.launch {
-                localDao.insert(construirLocal().copy(id = 0))
-                _showToast.value = true
-                delay(2000)
-                _showToast.value = false
-                resetForm()
-                onSuccess()
-            }
+    // Devuelve true si se guardó (la pantalla puede entonces volver atrás)
+    suspend fun registrarLocal(): Boolean {
+        if (!_isButtonEnabled.value) return false
+        return enViewModelScope {
+            localDao.insert(construirLocal().copy(id = 0))
+            mostrarExito()
+            true
         }
+    }
+
+    private suspend fun mostrarExito() {
+        _showToast.value = true
+        delay(2000)
+        _showToast.value = false
+        resetForm()
     }
 
     fun cargarLocal(id: Int) {
@@ -142,16 +147,12 @@ class LocalViewModel(
         }
     }
 
-    fun actualizarLocal(onSuccess: () -> Unit) {
-        if (_isButtonEnabled.value) {
-            viewModelScope.launch {
-                localDao.update(construirLocal())
-                _showToast.value = true
-                delay(2000)
-                _showToast.value = false
-                resetForm()
-                onSuccess()
-            }
+    suspend fun actualizarLocal(): Boolean {
+        if (!_isButtonEnabled.value) return false
+        return enViewModelScope {
+            localDao.update(construirLocal())
+            mostrarExito()
+            true
         }
     }
 

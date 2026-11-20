@@ -13,7 +13,12 @@ class AppViewModelFactory(private val database: AppDatabase) : ViewModelProvider
                 AuthViewModel(database.usuarioDao(), database.clienteDao())
 
             modelClass.isAssignableFrom(PortalClienteViewModel::class.java) ->
-                PortalClienteViewModel(database.ordenTrabajoDao(), database.usuarioDao(), database.clienteDao())
+                PortalClienteViewModel(
+                    database.ordenTrabajoDao(),
+                    database.usuarioDao(),
+                    database.clienteDao(),
+                    database.fotoDao()
+                )
 
             modelClass.isAssignableFrom(ClienteViewModel::class.java) ->
                 ClienteViewModel(database.clienteDao())

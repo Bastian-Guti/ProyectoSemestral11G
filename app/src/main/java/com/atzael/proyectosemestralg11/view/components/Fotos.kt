@@ -42,15 +42,13 @@ import com.atzael.proyectosemestralg11.util.cargarMiniatura
 import com.atzael.proyectosemestralg11.util.copiarFotoDesdeUri
 import com.atzael.proyectosemestralg11.util.nuevoArchivoFoto
 import com.atzael.proyectosemestralg11.util.uriDeArchivo
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 
 @Composable
 fun ImagenLocal(ruta: String, modifier: Modifier = Modifier, ladoMaximo: Int = 640) {
     val bitmap by produceState<Bitmap?>(initialValue = null, ruta) {
-        value = withContext(Dispatchers.IO) { cargarMiniatura(ruta, ladoMaximo) }
+        value = cargarMiniatura(ruta, ladoMaximo)
     }
     Box(
         modifier = modifier
@@ -144,7 +142,7 @@ fun SeccionFotos(
         if (uri != null) {
             scope.launch {
                 val destino = nuevoArchivoFoto(context, ordenId)
-                val copiada = withContext(Dispatchers.IO) { copiarFotoDesdeUri(context, uri, destino) }
+                val copiada = copiarFotoDesdeUri(context, uri, destino)
                 if (copiada) onFotoNueva(destino) else {
                     destino.delete()
                     errorCopia = true

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atzael.proyectosemestralg11.data.ClienteDao
 import com.atzael.proyectosemestralg11.model.Cliente
+import com.atzael.proyectosemestralg11.util.enViewModelScope
 import com.atzael.proyectosemestralg11.util.esTelefonoValido
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -112,17 +113,21 @@ class ClienteViewModel(private val clienteDao: ClienteDao) : ViewModel() {
         slaHoras = _slaHoras.value.toInt()
     )
 
-    fun registrarCliente(onSuccess: () -> Unit) {
-        if (_isButtonEnabled.value) {
-            viewModelScope.launch {
-                clienteDao.insert(construirCliente().copy(id = 0))
-                _showToast.value = true
-                delay(2000)
-                _showToast.value = false
-                resetForm()
-                onSuccess()
-            }
+    // Devuelve true si se guardó (la pantalla puede entonces volver atrás)
+    suspend fun registrarCliente(): Boolean {
+        if (!_isButtonEnabled.value) return false
+        return enViewModelScope {
+            clienteDao.insert(construirCliente().copy(id = 0))
+            mostrarExito()
+            true
         }
+    }
+
+    private suspend fun mostrarExito() {
+        _showToast.value = true
+        delay(2000)
+        _showToast.value = false
+        resetForm()
     }
 
     fun cargarCliente(id: Int) {
@@ -139,16 +144,12 @@ class ClienteViewModel(private val clienteDao: ClienteDao) : ViewModel() {
         }
     }
 
-    fun actualizarCliente(onSuccess: () -> Unit) {
-        if (_isButtonEnabled.value) {
-            viewModelScope.launch {
-                clienteDao.update(construirCliente())
-                _showToast.value = true
-                delay(2000)
-                _showToast.value = false
-                resetForm()
-                onSuccess()
-            }
+    suspend fun actualizarCliente(): Boolean {
+        if (!_isButtonEnabled.value) return false
+        return enViewModelScope {
+            clienteDao.update(construirCliente())
+            mostrarExito()
+            true
         }
     }
 

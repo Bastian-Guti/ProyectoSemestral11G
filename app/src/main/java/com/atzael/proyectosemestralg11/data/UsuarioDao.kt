@@ -12,9 +12,6 @@ interface UsuarioDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUsuario(usuario: Usuario)
 
-    @Query("SELECT * FROM usuarios WHERE rut = :rut AND password = :password AND rol = :rol")
-    suspend fun login(rut: String, password: String, rol: String): Usuario?
-
     @Query("SELECT * FROM usuarios WHERE rut = :rut")
     suspend fun getUsuarioByRut(rut: String): Usuario?
 

@@ -21,6 +21,7 @@ import com.atzael.proyectosemestralg11.model.Cliente
 import com.atzael.proyectosemestralg11.model.RolUsuario
 import com.atzael.proyectosemestralg11.util.esRutValido
 import com.atzael.proyectosemestralg11.view.components.CampoDesplegable
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,8 +29,10 @@ fun RegisterScreen(
     modifier: Modifier = Modifier,
     onBackToLogin: () -> Unit,
     clientes: List<Cliente> = emptyList(),
-    onRegisterSuccess: (String, String, String, String, String, Int?, (String?) -> Unit) -> Unit = { _, _, _, _, _, _, _ -> }
+    // Devuelve el mensaje de error, o null si el registro fue exitoso
+    onRegisterSuccess: suspend (String, String, String, String, String, Int?) -> String? = { _, _, _, _, _, _ -> null }
 ) {
+    val scope = rememberCoroutineScope()
     var nombre by remember { mutableStateOf("") }
     var apellido by remember { mutableStateOf("") }
     var rut by remember { mutableStateOf("") }
@@ -307,8 +310,8 @@ fun RegisterScreen(
                                 else -> RolUsuario.CLIENTE
                             }
                             val clienteId = if (isClienteSelected) clienteSeleccionado?.id else null
-                            onRegisterSuccess(rut, password, nombre, apellido, role, clienteId) { error ->
-                                errorMessage = error
+                            scope.launch {
+                                errorMessage = onRegisterSuccess(rut, password, nombre, apellido, role, clienteId)
                             }
                         }
                     }

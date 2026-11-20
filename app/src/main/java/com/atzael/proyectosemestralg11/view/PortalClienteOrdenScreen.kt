@@ -18,16 +18,21 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.atzael.proyectosemestralg11.model.TipoFoto
 import com.atzael.proyectosemestralg11.util.formatearDuracion
 import com.atzael.proyectosemestralg11.util.formatearFecha
 import com.atzael.proyectosemestralg11.util.formatearFechaHora
 import com.atzael.proyectosemestralg11.view.components.BarraSuperior
+import com.atzael.proyectosemestralg11.view.components.GaleriaFotos
 import com.atzael.proyectosemestralg11.view.components.SuccessToast
 import com.atzael.proyectosemestralg11.viewmodel.PortalClienteViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,10 +42,16 @@ fun PortalClienteOrdenScreen(
     ordenId: Int,
     onBack: () -> Unit
 ) {
+    val scope = rememberCoroutineScope()
     val ordenes by viewModel.todasLasOrdenes.collectAsState()
+    val fotos by viewModel.fotos.collectAsState()
     val observaciones by viewModel.observaciones.collectAsState()
     val observacionesError by viewModel.observacionesError.collectAsState()
     val showToast by viewModel.showToast.collectAsState()
+
+    LaunchedEffect(ordenId) {
+        viewModel.seleccionarOrden(ordenId)
+    }
 
     // Limpia el texto escrito al salir de la pantalla
     DisposableEffect(ordenId) {
@@ -100,6 +111,16 @@ fun PortalClienteOrdenScreen(
                     }
                 }
 
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Fotos del equipo", style = MaterialTheme.typography.titleMedium)
+                        TipoFoto.todos.forEach { tipo ->
+                            Text(tipo, style = MaterialTheme.typography.labelLarge)
+                            GaleriaFotos(fotos = fotos.filter { it.tipo == tipo })
+                        }
+                    }
+                }
+
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
                 when {
@@ -119,11 +140,11 @@ fun PortalClienteOrdenScreen(
                             supportingText = { observacionesError?.let { Text(it) } }
                         )
                         Button(
-                            onClick = { viewModel.validarConformidad(item, true, rutUsuario) },
+                            onClick = { scope.launch { viewModel.validarConformidad(item, true, rutUsuario) } },
                             modifier = Modifier.fillMaxWidth()
                         ) { Text("Confirmar conformidad") }
                         Button(
-                            onClick = { viewModel.validarConformidad(item, false, rutUsuario) },
+                            onClick = { scope.launch { viewModel.validarConformidad(item, false, rutUsuario) } },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                         ) { Text("Rechazar con observaciones") }

@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.atzael.proyectosemestralg11.model.PrioridadOrden
@@ -26,6 +27,7 @@ import com.atzael.proyectosemestralg11.view.components.CampoDesplegable
 import com.atzael.proyectosemestralg11.view.components.CampoFecha
 import com.atzael.proyectosemestralg11.view.components.SuccessToast
 import com.atzael.proyectosemestralg11.viewmodel.OrdenViewModel
+import kotlinx.coroutines.launch
 
 // ordenId == null -> crear una OT nueva; si no, editar la existente
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,6 +38,7 @@ fun OrdenFormScreen(
     ordenId: Int?,
     onBack: () -> Unit
 ) {
+    val scope = rememberCoroutineScope()
     val clientes by viewModel.clientes.collectAsState()
     val locales by viewModel.localesDisponibles.collectAsState()
     val equipos by viewModel.equiposDisponibles.collectAsState()
@@ -151,10 +154,9 @@ fun OrdenFormScreen(
 
             Button(
                 onClick = {
-                    if (ordenId == null) {
-                        viewModel.registrarOrden(rutUsuario) { onBack() }
-                    } else {
-                        viewModel.actualizarOrden { onBack() }
+                    scope.launch {
+                        val guardado = if (ordenId == null) viewModel.registrarOrden(rutUsuario) else viewModel.actualizarOrden()
+                        if (guardado) onBack()
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),

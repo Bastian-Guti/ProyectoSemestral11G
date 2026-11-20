@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -25,6 +26,7 @@ import com.atzael.proyectosemestralg11.view.components.BarraSuperior
 import com.atzael.proyectosemestralg11.view.components.CampoDesplegable
 import com.atzael.proyectosemestralg11.view.components.SuccessToast
 import com.atzael.proyectosemestralg11.viewmodel.LocalViewModel
+import kotlinx.coroutines.launch
 
 // localId == null -> registrar; si no, actualizar
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,6 +36,7 @@ fun LocalFormScreen(
     localId: Int?,
     onBack: () -> Unit
 ) {
+    val scope = rememberCoroutineScope()
     val clientes by viewModel.clientes.collectAsState()
     val clienteId by viewModel.clienteId.collectAsState()
     val nombre by viewModel.nombre.collectAsState()
@@ -112,10 +115,9 @@ fun LocalFormScreen(
 
             Button(
                 onClick = {
-                    if (localId == null) {
-                        viewModel.registrarLocal { onBack() }
-                    } else {
-                        viewModel.actualizarLocal { onBack() }
+                    scope.launch {
+                        val guardado = if (localId == null) viewModel.registrarLocal() else viewModel.actualizarLocal()
+                        if (guardado) onBack()
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),

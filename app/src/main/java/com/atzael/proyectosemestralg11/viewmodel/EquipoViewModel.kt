@@ -9,6 +9,7 @@ import com.atzael.proyectosemestralg11.model.Cliente
 import com.atzael.proyectosemestralg11.model.Equipo
 import com.atzael.proyectosemestralg11.model.Local
 import com.atzael.proyectosemestralg11.model.UbicacionEquipo
+import com.atzael.proyectosemestralg11.util.enViewModelScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -115,17 +116,21 @@ class EquipoViewModel(
         ultimaMantencion = _ultimaMantencion.value
     )
 
-    fun registrarEquipo(onSuccess: () -> Unit) {
-        if (_isButtonEnabled.value) {
-            viewModelScope.launch {
-                equipoDao.insert(construirEquipo().copy(id = 0))
-                _showToast.value = true
-                delay(2000)
-                _showToast.value = false
-                resetForm()
-                onSuccess()
-            }
+    // Devuelve true si se guardó (la pantalla puede entonces volver atrás)
+    suspend fun registrarEquipo(): Boolean {
+        if (!_isButtonEnabled.value) return false
+        return enViewModelScope {
+            equipoDao.insert(construirEquipo().copy(id = 0))
+            mostrarExito()
+            true
         }
+    }
+
+    private suspend fun mostrarExito() {
+        _showToast.value = true
+        delay(2000)
+        _showToast.value = false
+        resetForm()
     }
 
     fun cargarEquipo(id: Int) {
@@ -144,16 +149,12 @@ class EquipoViewModel(
         }
     }
 
-    fun actualizarEquipo(onSuccess: () -> Unit) {
-        if (_isButtonEnabled.value) {
-            viewModelScope.launch {
-                equipoDao.update(construirEquipo())
-                _showToast.value = true
-                delay(2000)
-                _showToast.value = false
-                resetForm()
-                onSuccess()
-            }
+    suspend fun actualizarEquipo(): Boolean {
+        if (!_isButtonEnabled.value) return false
+        return enViewModelScope {
+            equipoDao.update(construirEquipo())
+            mostrarExito()
+            true
         }
     }
 

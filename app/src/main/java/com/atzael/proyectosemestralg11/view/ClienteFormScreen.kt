@@ -19,12 +19,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.atzael.proyectosemestralg11.view.components.BarraSuperior
 import com.atzael.proyectosemestralg11.view.components.SuccessToast
 import com.atzael.proyectosemestralg11.viewmodel.ClienteViewModel
+import kotlinx.coroutines.launch
 
 // clienteId == null -> registrar; si no, actualizar
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,6 +36,7 @@ fun ClienteFormScreen(
     clienteId: Int?,
     onBack: () -> Unit
 ) {
+    val scope = rememberCoroutineScope()
     val nombre by viewModel.nombre.collectAsState()
     val contacto by viewModel.contacto.collectAsState()
     val telefono by viewModel.telefono.collectAsState()
@@ -116,10 +119,9 @@ fun ClienteFormScreen(
 
             Button(
                 onClick = {
-                    if (clienteId == null) {
-                        viewModel.registrarCliente { onBack() }
-                    } else {
-                        viewModel.actualizarCliente { onBack() }
+                    scope.launch {
+                        val guardado = if (clienteId == null) viewModel.registrarCliente() else viewModel.actualizarCliente()
+                        if (guardado) onBack()
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),

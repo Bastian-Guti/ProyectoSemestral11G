@@ -11,36 +11,34 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
-import com.atzael.proyectosemestralg11.model.RolUsuario
 import com.atzael.proyectosemestralg11.ui.theme.ProyectoSemestralG11Theme
 import com.atzael.proyectosemestralg11.util.esRutValido
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
-    onLoginClick: (String, String, String, (String?) -> Unit) -> Unit = { _, _, _, _ -> },
+    // Devuelve el mensaje de error, o null si el inicio de sesión fue exitoso
+    onLoginClick: suspend (String, String) -> String? = { _, _ -> null },
     onRegisterClick: () -> Unit = {}
 ) {
+    val scope = rememberCoroutineScope()
     var rut by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var roleError by remember { mutableStateOf<String?>(null) }
-    
-    var isTecnicoSelected by remember { mutableStateOf(false) }
-    var isJefaturaSelected by remember { mutableStateOf(false) }
-    var isClienteSelected by remember { mutableStateOf(false) }
 
     val isRutInvalid = rut.isNotBlank() && !rut.esRutValido() && rut.length >= 8
-    val hasRoleError = roleError != null
-    val boxColor = if (hasRoleError) MaterialTheme.colorScheme.error else Color.White
-    val textColor = if (hasRoleError) MaterialTheme.colorScheme.error else Color.White
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -59,8 +57,25 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Bienvenido",
+                text = buildAnnotatedString {
+                    withStyle(style = SpanStyle(color = Color.White)) {
+                        append("Bienvenido a la ")
+                    }
+                    withStyle(style = SpanStyle(color = Color(0xFF2196F3))) {
+                        append("ACIS")
+                    }
+                    withStyle(style = SpanStyle(color = Color.White)) {
+                        append(" ")
+                    }
+                    withStyle(style = SpanStyle(color = Color(0xFFFCC100))) {
+                        append("OT")
+                    }
+                    withStyle(style = SpanStyle(color = Color.White)) {
+                        append(" app")
+                    }
+                },
                 style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center,
                 modifier = Modifier.padding(bottom = 32.dp)
             )
 
@@ -106,110 +121,9 @@ fun LoginScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp)
+                    .padding(bottom = 24.dp)
                     .clickable(onClick = onRegisterClick)
             )
-
-            Column(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "Entrar como...",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = textColor,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 4.dp)
-                )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = isTecnicoSelected,
-                            onCheckedChange = { 
-                                isTecnicoSelected = it
-                                if (it) {
-                                    isJefaturaSelected = false
-                                    isClienteSelected = false
-                                }
-                                roleError = null
-                            },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = boxColor,
-                                uncheckedColor = boxColor,
-                                checkmarkColor = Color.Black
-                            )
-                        )
-                        Text(text = "Tecnico", color = Color.White)
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = isJefaturaSelected,
-                            onCheckedChange = { 
-                                isJefaturaSelected = it
-                                if (it) {
-                                    isTecnicoSelected = false
-                                    isClienteSelected = false
-                                }
-                                roleError = null
-                            },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = boxColor,
-                                uncheckedColor = boxColor,
-                                checkmarkColor = Color.Black
-                            )
-                        )
-                        Text(text = "Jefatura", color = Color.White)
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = isClienteSelected,
-                            onCheckedChange = {
-                                isClienteSelected = it
-                                if (it) {
-                                    isTecnicoSelected = false
-                                    isJefaturaSelected = false
-                                }
-                                roleError = null
-                            },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = boxColor,
-                                uncheckedColor = boxColor,
-                                checkmarkColor = Color.Black
-                            )
-                        )
-                        Text(text = "Cliente", color = Color.White)
-                    }
-                }
-
-                val currentRoleError = roleError
-                if (currentRoleError != null) {
-                    Text(
-                        text = currentRoleError,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp)
-                    )
-                } else {
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-            }
 
             val currentError = errorMessage
             if (currentError != null) {
@@ -234,20 +148,9 @@ fun LoginScreen(
                         !rut.esRutValido() -> {
                             errorMessage = "RUT inválido"
                         }
-                        !isTecnicoSelected && !isJefaturaSelected && !isClienteSelected -> {
-                            roleError = "debes seleccionar como entrar."
-                        }
                         else -> {
                             errorMessage = null
-                            roleError = null
-                            val role = when {
-                                isTecnicoSelected -> RolUsuario.TECNICO
-                                isJefaturaSelected -> RolUsuario.JEFATURA
-                                else -> RolUsuario.CLIENTE
-                            }
-                            onLoginClick(rut, password, role) { error ->
-                                errorMessage = error
-                            }
+                            scope.launch { errorMessage = onLoginClick(rut, password) }
                         }
                     }
                 },

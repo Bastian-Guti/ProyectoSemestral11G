@@ -28,6 +28,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -45,6 +46,7 @@ import com.atzael.proyectosemestralg11.view.components.GaleriaFotos
 import com.atzael.proyectosemestralg11.view.components.SeccionFotos
 import com.atzael.proyectosemestralg11.view.components.SuccessToast
 import com.atzael.proyectosemestralg11.viewmodel.TecnicoViewModel
+import kotlinx.coroutines.launch
 
 // HU-09 a HU-13: aceptar o rechazar, check-in, informe, fotos, check-out y cierre
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,6 +58,7 @@ fun TecnicoOrdenScreen(
     onVerFicha: (Int) -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val ordenes by viewModel.todasLasOrdenes.collectAsState()
     val fotos by viewModel.fotos.collectAsState()
     val avisoAceptado by viewModel.avisoAceptado.collectAsState()
@@ -77,16 +80,15 @@ fun TecnicoOrdenScreen(
     // Pide la ubicación solo en este momento; si se niega o no hay señal, queda registrada solo la hora
     fun conUbicacion(accion: (Pair<Double, Double>?) -> Unit) {
         obteniendoUbicacion = true
-        val terminar: (Pair<Double, Double>?) -> Unit = {
+        val terminar: suspend (Boolean) -> Unit = { puedeUbicar ->
+            val ubicacion = if (puedeUbicar) Ubicacion.obtenerUnaVez(context) else null
             obteniendoUbicacion = false
-            accion(it)
+            accion(ubicacion)
         }
         if (Ubicacion.tienePermiso(context)) {
-            Ubicacion.obtenerUnaVez(context, terminar)
+            scope.launch { terminar(true) }
         } else {
-            alResponderPermiso = { concedido ->
-                if (concedido) Ubicacion.obtenerUnaVez(context, terminar) else terminar(null)
-            }
+            alResponderPermiso = { concedido -> scope.launch { terminar(concedido) } }
             permisoUbicacion.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
     }
@@ -229,7 +231,7 @@ fun TecnicoOrdenScreen(
                             ) { Text(if (obteniendoUbicacion) "Obteniendo ubicación..." else "Registrar check-out (salida)") }
                         }
                         Button(
-                            onClick = { viewModel.cerrarOrden(orden) { onBack() } },
+                            onClick = { scope.launch { if (viewModel.cerrarOrden(orden)) onBack() } },
                             enabled = orden.checkOut != null && diagnostico.isNotBlank(),
                             modifier = Modifier.fillMaxWidth()
                         ) { Text("Cerrar orden de trabajo") }
@@ -258,7 +260,7 @@ fun TecnicoOrdenScreen(
                 DialogoRechazo(
                     onCancelar = { mostrarRechazo = false },
                     onConfirmar = { motivo ->
-                        viewModel.rechazarOrden(orden, motivo) { onBack() }
+                        scope.launch { if (viewModel.rechazarOrden(orden, motivo)) onBack() }
                         mostrarRechazo = false
                     }
                 )

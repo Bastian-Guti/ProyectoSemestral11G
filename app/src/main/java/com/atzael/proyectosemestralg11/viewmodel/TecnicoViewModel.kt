@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atzael.proyectosemestralg11.data.EquipoDao
 import com.atzael.proyectosemestralg11.data.FotoDao
+import com.atzael.proyectosemestralg11.util.enViewModelScope
 import com.atzael.proyectosemestralg11.data.OrdenTrabajoDao
 import com.atzael.proyectosemestralg11.data.UsuarioDao
 import com.atzael.proyectosemestralg11.model.EstadoOrden
@@ -159,16 +160,17 @@ class TecnicoViewModel(
     }
 
     // El motivo es obligatorio (HU-09)
-    fun rechazarOrden(orden: OrdenTrabajo, motivo: String, onSuccess: () -> Unit = {}) {
-        if (orden.estado != EstadoOrden.PENDIENTE && orden.estado != EstadoOrden.ACEPTADA) return
+    // Devuelve true si se rechazó (la pantalla puede entonces volver atrás)
+    suspend fun rechazarOrden(orden: OrdenTrabajo, motivo: String): Boolean {
+        if (orden.estado != EstadoOrden.PENDIENTE && orden.estado != EstadoOrden.ACEPTADA) return false
         if (motivo.isBlank()) {
             _error.value = "Indique el motivo para rechazar la orden"
-            return
+            return false
         }
-        viewModelScope.launch {
+        return enViewModelScope {
             ordenDao.update(orden.copy(estado = EstadoOrden.RECHAZADA_TECNICO, motivoRechazo = motivo.trim()))
             anunciar("Orden rechazada")
-            onSuccess()
+            true
         }
     }
 
@@ -213,26 +215,26 @@ class TecnicoViewModel(
     }
 
     // No se puede cerrar sin check-out y diagnóstico (HU-13)
-    fun cerrarOrden(orden: OrdenTrabajo, onSuccess: () -> Unit = {}) {
-        if (orden.estado != EstadoOrden.EN_CURSO) return
+    suspend fun cerrarOrden(orden: OrdenTrabajo): Boolean {
+        if (orden.estado != EstadoOrden.EN_CURSO) return false
         when {
             orden.checkOut == null -> {
                 _error.value = "Para cerrar la OT primero registre el check-out"
-                return
+                return false
             }
             _diagnostico.value.isBlank() -> {
                 _error.value = "Para cerrar la OT debe registrar el diagnóstico"
-                return
+                return false
             }
         }
-        viewModelScope.launch {
+        return enViewModelScope {
             ordenDao.update(orden.conInforme().copy(estado = EstadoOrden.FINALIZADA))
             // La última mantención del equipo se actualiza al cerrar la OT (HU-03)
             equipoDao.getById(orden.equipoId)?.let { equipo ->
                 equipoDao.update(equipo.copy(ultimaMantencion = hoyUtc()))
             }
             anunciar("Orden finalizada")
-            onSuccess()
+            true
         }
     }
 

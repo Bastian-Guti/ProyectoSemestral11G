@@ -19,6 +19,7 @@ import com.atzael.proyectosemestralg11.model.PrioridadOrden
 import com.atzael.proyectosemestralg11.model.Reprogramacion
 import com.atzael.proyectosemestralg11.model.TipoOrden
 import com.atzael.proyectosemestralg11.model.Usuario
+import com.atzael.proyectosemestralg11.util.enViewModelScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -213,25 +214,25 @@ class OrdenViewModel(
                 _fechaVisita.value != null
     }
 
-    fun registrarOrden(creadaPor: String, onSuccess: () -> Unit) {
-        if (_isButtonEnabled.value) {
-            viewModelScope.launch {
-                ordenDao.insert(
-                    OrdenTrabajo(
-                        clienteId = _clienteId.value!!,
-                        localId = _localId.value!!,
-                        equipoId = _equipoId.value!!,
-                        tipo = _tipo.value,
-                        prioridad = _prioridad.value,
-                        tecnicoRut = _tecnicoRut.value!!,
-                        fechaVisita = _fechaVisita.value!!,
-                        creadaPor = creadaPor
-                    )
+    // Devuelve true si se guardó (la pantalla puede entonces volver atrás)
+    suspend fun registrarOrden(creadaPor: String): Boolean {
+        if (!_isButtonEnabled.value) return false
+        return enViewModelScope {
+            ordenDao.insert(
+                OrdenTrabajo(
+                    clienteId = _clienteId.value!!,
+                    localId = _localId.value!!,
+                    equipoId = _equipoId.value!!,
+                    tipo = _tipo.value,
+                    prioridad = _prioridad.value,
+                    tecnicoRut = _tecnicoRut.value!!,
+                    fechaVisita = _fechaVisita.value!!,
+                    creadaPor = creadaPor
                 )
-                mostrarToast()
-                resetForm()
-                onSuccess()
-            }
+            )
+            mostrarToast()
+            resetForm()
+            true
         }
     }
 
@@ -253,23 +254,22 @@ class OrdenViewModel(
     }
 
     // Fecha y técnico solo cambian por "reagendar", para dejar historial
-    fun actualizarOrden(onSuccess: () -> Unit) {
-        val original = ordenOriginal ?: return
-        if (_isButtonEnabled.value) {
-            viewModelScope.launch {
-                ordenDao.update(
-                    original.copy(
-                        clienteId = _clienteId.value!!,
-                        localId = _localId.value!!,
-                        equipoId = _equipoId.value!!,
-                        tipo = _tipo.value,
-                        prioridad = _prioridad.value
-                    )
+    suspend fun actualizarOrden(): Boolean {
+        val original = ordenOriginal ?: return false
+        if (!_isButtonEnabled.value) return false
+        return enViewModelScope {
+            ordenDao.update(
+                original.copy(
+                    clienteId = _clienteId.value!!,
+                    localId = _localId.value!!,
+                    equipoId = _equipoId.value!!,
+                    tipo = _tipo.value,
+                    prioridad = _prioridad.value
                 )
-                mostrarToast()
-                resetForm()
-                onSuccess()
-            }
+            )
+            mostrarToast()
+            resetForm()
+            true
         }
     }
 
@@ -325,42 +325,35 @@ class OrdenViewModel(
         _ordenSeleccionadaId.value = id
     }
 
-    fun reagendarOrden(
+    suspend fun reagendarOrden(
         orden: OrdenTrabajo,
         nuevaFecha: Long,
         nuevoTecnicoRut: String,
-        motivo: String,
-        onSuccess: () -> Unit = {}
-    ) {
-        viewModelScope.launch {
-            // Una OT rechazada por el técnico vuelve a quedar pendiente al reasignarla
-            val estado = if (orden.estado == EstadoOrden.RECHAZADA_TECNICO) EstadoOrden.PENDIENTE else orden.estado
-            ordenDao.reprogramar(
-                orden.copy(
-                    fechaVisita = nuevaFecha,
-                    tecnicoRut = nuevoTecnicoRut,
-                    estado = estado,
-                    motivoRechazo = if (estado == EstadoOrden.PENDIENTE) null else orden.motivoRechazo
-                ),
-                Reprogramacion(
-                    ordenId = orden.id,
-                    fechaAnterior = orden.fechaVisita,
-                    fechaNueva = nuevaFecha,
-                    tecnicoAnterior = orden.tecnicoRut,
-                    tecnicoNuevo = nuevoTecnicoRut,
-                    motivo = motivo
-                )
+        motivo: String
+    ) = enViewModelScope {
+        // Una OT rechazada por el técnico vuelve a quedar pendiente al reasignarla
+        val estado = if (orden.estado == EstadoOrden.RECHAZADA_TECNICO) EstadoOrden.PENDIENTE else orden.estado
+        ordenDao.reprogramar(
+            orden.copy(
+                fechaVisita = nuevaFecha,
+                tecnicoRut = nuevoTecnicoRut,
+                estado = estado,
+                motivoRechazo = if (estado == EstadoOrden.PENDIENTE) null else orden.motivoRechazo
+            ),
+            Reprogramacion(
+                ordenId = orden.id,
+                fechaAnterior = orden.fechaVisita,
+                fechaNueva = nuevaFecha,
+                tecnicoAnterior = orden.tecnicoRut,
+                tecnicoNuevo = nuevoTecnicoRut,
+                motivo = motivo
             )
-            mostrarToast()
-            onSuccess()
-        }
+        )
+        mostrarToast()
     }
 
     // La OT no se borra: queda registrada como cancelada
-    fun cancelarOrden(orden: OrdenTrabajo, onSuccess: () -> Unit = {}) {
-        viewModelScope.launch {
-            ordenDao.update(orden.copy(estado = EstadoOrden.CANCELADA))
-            onSuccess()
-        }
+    suspend fun cancelarOrden(orden: OrdenTrabajo) = enViewModelScope {
+        ordenDao.update(orden.copy(estado = EstadoOrden.CANCELADA))
     }
 }

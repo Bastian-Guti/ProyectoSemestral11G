@@ -6,13 +6,18 @@ import com.atzael.proyectosemestralg11.data.ClienteDao
 import com.atzael.proyectosemestralg11.data.UsuarioDao
 import com.atzael.proyectosemestralg11.model.Cliente
 import com.atzael.proyectosemestralg11.model.Usuario
+import com.atzael.proyectosemestralg11.util.enViewModelScope
 import com.atzael.proyectosemestralg11.util.normalizarRut
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
+
+sealed interface ResultadoAuth {
+    data class Exito(val rol: String) : ResultadoAuth
+    data class Error(val mensaje: String) : ResultadoAuth
+}
 
 class AuthViewModel(
     private val usuarioDao: UsuarioDao,
@@ -33,50 +38,36 @@ class AuthViewModel(
     private val _nombreActual = MutableStateFlow("")
     val nombreActual: StateFlow<String> = _nombreActual.asStateFlow()
 
-    fun iniciarSesion(
-        rut: String,
-        password: String,
-        rol: String,
-        onExito: () -> Unit,
-        onError: (String) -> Unit
-    ) {
+    // Éxito trae el rol del usuario; Error trae el mensaje para mostrar en el formulario
+    suspend fun iniciarSesion(rut: String, password: String): ResultadoAuth {
         val rut = rut.normalizarRut()
-        viewModelScope.launch {
-            val usuario = usuarioDao.login(rut, password, rol)
-            if (usuario != null) {
+        val usuario = usuarioDao.getUsuarioByRut(rut)
+        return when {
+            usuario == null -> ResultadoAuth.Error("RUT no registrado.")
+            usuario.password != password -> ResultadoAuth.Error("Contraseña incorrecta.")
+            else -> {
                 _rutActual.value = usuario.rut
                 _nombreActual.value = "${usuario.nombre} ${usuario.apellido}"
-                onExito()
-            } else {
-                val existente = usuarioDao.getUsuarioByRut(rut)
-                onError(
-                    when {
-                        existente == null -> "RUT no registrado."
-                        existente.rol != rol -> "Este RUT está registrado como ${existente.rol}, no como $rol."
-                        else -> "Contraseña incorrecta."
-                    }
-                )
+                ResultadoAuth.Exito(usuario.rol)
             }
         }
     }
 
-    fun registrarUsuario(
+    suspend fun registrarUsuario(
         rut: String,
         password: String,
         nombre: String,
         apellido: String,
         rol: String,
-        clienteId: Int? = null,
-        onExito: () -> Unit,
-        onError: (String) -> Unit
-    ) {
+        clienteId: Int? = null
+    ): ResultadoAuth {
         val rut = rut.normalizarRut()
-        viewModelScope.launch {
+        return enViewModelScope {
             if (usuarioDao.getUsuarioByRut(rut) != null) {
-                onError("El RUT ya está registrado.")
+                ResultadoAuth.Error("El RUT ya está registrado.")
             } else {
                 usuarioDao.insertUsuario(Usuario(rut, nombre, apellido, password, rol, clienteId))
-                onExito()
+                ResultadoAuth.Exito(rol)
             }
         }
     }

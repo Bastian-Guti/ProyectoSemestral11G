@@ -3,11 +3,14 @@ package com.atzael.proyectosemestralg11.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atzael.proyectosemestralg11.data.ClienteDao
+import com.atzael.proyectosemestralg11.data.FotoDao
 import com.atzael.proyectosemestralg11.data.OrdenTrabajoDao
 import com.atzael.proyectosemestralg11.data.UsuarioDao
 import com.atzael.proyectosemestralg11.model.EstadoConformidad
 import com.atzael.proyectosemestralg11.model.EstadoOrden
+import com.atzael.proyectosemestralg11.model.FotoOrden
 import com.atzael.proyectosemestralg11.model.OrdenConDetalle
+import com.atzael.proyectosemestralg11.util.enViewModelScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,10 +30,31 @@ import kotlinx.coroutines.launch
 class PortalClienteViewModel(
     private val ordenDao: OrdenTrabajoDao,
     private val usuarioDao: UsuarioDao,
-    private val clienteDao: ClienteDao
+    private val clienteDao: ClienteDao,
+    private val fotoDao: FotoDao
 ) : ViewModel() {
 
     private val _clienteId = MutableStateFlow<Int?>(null)
+
+    // Fotos de la OT abierta en pantalla. Solo se piden si la OT pertenece a la empresa del usuario.
+    private val _ordenSeleccionadaId = MutableStateFlow<Int?>(null)
+
+    val fotos: StateFlow<List<FotoOrden>> = combine(_ordenSeleccionadaId, todasLasOrdenesIds()) { id, propias ->
+        id?.takeIf { it in propias }
+    }.flatMapLatest { id -> if (id == null) flowOf(emptyList()) else fotoDao.getByOrden(id) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    fun seleccionarOrden(id: Int) {
+        _ordenSeleccionadaId.value = id
+    }
+
+    private fun todasLasOrdenesIds() = _clienteId
+        .flatMapLatest { id -> if (id == null) flowOf(emptyList()) else ordenDao.getByCliente(id) }
+        .map { lista -> lista.map { it.orden.id }.toSet() }
 
     private val _nombreEmpresa = MutableStateFlow("")
     val nombreEmpresa: StateFlow<String> = _nombreEmpresa.asStateFlow()
@@ -96,14 +120,14 @@ class PortalClienteViewModel(
     }
 
     // Confirma el trabajo, o lo rechaza con observaciones obligatorias
-    fun validarConformidad(item: OrdenConDetalle, conforme: Boolean, rutUsuario: String, onSuccess: () -> Unit = {}) {
-        if (!requiereConformidad(item)) return
+    suspend fun validarConformidad(item: OrdenConDetalle, conforme: Boolean, rutUsuario: String): Boolean {
+        if (!requiereConformidad(item)) return false
         val texto = _observaciones.value.trim()
         if (!conforme && texto.isBlank()) {
             _observacionesError.value = "Indique las observaciones para rechazar el trabajo"
-            return
+            return false
         }
-        viewModelScope.launch {
+        return enViewModelScope {
             ordenDao.update(
                 item.orden.copy(
                     conformidad = if (conforme) EstadoConformidad.CONFORME else EstadoConformidad.RECHAZADA,
@@ -116,7 +140,7 @@ class PortalClienteViewModel(
             delay(2000)
             _showToast.value = false
             resetFormulario()
-            onSuccess()
+            true
         }
     }
 

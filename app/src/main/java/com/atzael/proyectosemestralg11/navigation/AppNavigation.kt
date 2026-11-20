@@ -43,6 +43,7 @@ import com.atzael.proyectosemestralg11.viewmodel.EquipoViewModel
 import com.atzael.proyectosemestralg11.viewmodel.LocalViewModel
 import com.atzael.proyectosemestralg11.viewmodel.OrdenViewModel
 import com.atzael.proyectosemestralg11.viewmodel.PortalClienteViewModel
+import com.atzael.proyectosemestralg11.viewmodel.ResultadoAuth
 import com.atzael.proyectosemestralg11.viewmodel.ReporteViewModel
 
 private val argumentoId = listOf(navArgument("id") { type = NavType.IntType })
@@ -90,13 +91,11 @@ fun AppNavigation() {
         // ---------- Acceso ----------
         composable(Rutas.Login.route) {
             LoginScreen(
-                onLoginClick = { rut, password, rol, onError ->
-                    authViewModel.iniciarSesion(
-                        rut = rut,
-                        password = password,
-                        rol = rol,
-                        onExito = {
-                            val destino = when (rol) {
+                onLoginClick = { rut, password ->
+                    when (val resultado = authViewModel.iniciarSesion(rut, password)) {
+                        is ResultadoAuth.Error -> resultado.mensaje
+                        is ResultadoAuth.Exito -> {
+                            val destino = when (resultado.rol) {
                                 RolUsuario.JEFATURA -> Rutas.Jefatura.route
                                 RolUsuario.CLIENTE -> Rutas.PortalCliente.route
                                 else -> Rutas.Tecnico.route
@@ -104,9 +103,9 @@ fun AppNavigation() {
                             navController.navigate(destino) {
                                 popUpTo(Rutas.Login.route) { inclusive = true }
                             }
-                        },
-                        onError = onError
-                    )
+                            null
+                        }
+                    }
                 },
                 onRegisterClick = { navController.navigate(Rutas.Registro.route) }
             )
@@ -115,17 +114,14 @@ fun AppNavigation() {
             RegisterScreen(
                 onBackToLogin = { navController.cerrarPantalla(Rutas.Registro.route) },
                 clientes = clientesRegistrados,
-                onRegisterSuccess = { rut, password, nombre, apellido, rol, clienteId, onError ->
-                    authViewModel.registrarUsuario(
-                        rut = rut,
-                        password = password,
-                        nombre = nombre,
-                        apellido = apellido,
-                        rol = rol,
-                        clienteId = clienteId,
-                        onExito = { navController.cerrarPantalla(Rutas.Registro.route) },
-                        onError = onError
-                    )
+                onRegisterSuccess = { rut, password, nombre, apellido, rol, clienteId ->
+                    when (val resultado = authViewModel.registrarUsuario(rut, password, nombre, apellido, rol, clienteId)) {
+                        is ResultadoAuth.Error -> resultado.mensaje
+                        is ResultadoAuth.Exito -> {
+                            navController.cerrarPantalla(Rutas.Registro.route)
+                            null
+                        }
+                    }
                 }
             )
         }

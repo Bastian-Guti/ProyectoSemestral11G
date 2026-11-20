@@ -26,6 +26,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -44,6 +45,7 @@ import com.atzael.proyectosemestralg11.view.components.CampoFecha
 import com.atzael.proyectosemestralg11.view.components.DialogoConfirmacion
 import com.atzael.proyectosemestralg11.view.components.SuccessToast
 import com.atzael.proyectosemestralg11.viewmodel.OrdenViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,6 +56,7 @@ fun OrdenDetalleScreen(
     onEditar: (Int) -> Unit,
     onVerFicha: (Int) -> Unit
 ) {
+    val scope = rememberCoroutineScope()
     val detalle by viewModel.ordenDetalle.collectAsState()
     val fotos by viewModel.fotos.collectAsState()
     val reprogramaciones by viewModel.reprogramaciones.collectAsState()
@@ -214,7 +217,7 @@ fun OrdenDetalleScreen(
                     tecnicoActual = orden.tecnicoRut,
                     onCancelar = { mostrarReagendar = false },
                     onConfirmar = { fecha, tecnicoRut, motivo ->
-                        viewModel.reagendarOrden(orden, fecha, tecnicoRut, motivo)
+                        scope.launch { viewModel.reagendarOrden(orden, fecha, tecnicoRut, motivo) }
                         mostrarReagendar = false
                     }
                 )
@@ -226,7 +229,7 @@ fun OrdenDetalleScreen(
                     mensaje = "¿Desea cancelar la OT #${orden.id} de '${item.clienteNombre}'? Quedará registrada como cancelada.",
                     textoConfirmar = "Cancelar OT",
                     onConfirmar = {
-                        viewModel.cancelarOrden(orden)
+                        scope.launch { viewModel.cancelarOrden(orden) }
                         mostrarCancelar = false
                     },
                     onCancelar = { mostrarCancelar = false }

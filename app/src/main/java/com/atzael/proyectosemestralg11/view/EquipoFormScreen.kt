@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.atzael.proyectosemestralg11.model.UbicacionEquipo
@@ -25,6 +26,7 @@ import com.atzael.proyectosemestralg11.view.components.CampoDesplegable
 import com.atzael.proyectosemestralg11.view.components.CampoFecha
 import com.atzael.proyectosemestralg11.view.components.SuccessToast
 import com.atzael.proyectosemestralg11.viewmodel.EquipoViewModel
+import kotlinx.coroutines.launch
 
 // equipoId == null -> registrar; si no, actualizar
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,6 +36,7 @@ fun EquipoFormScreen(
     equipoId: Int?,
     onBack: () -> Unit
 ) {
+    val scope = rememberCoroutineScope()
     val locales by viewModel.locales.collectAsState()
     val clientes by viewModel.clientes.collectAsState()
     val localId by viewModel.localId.collectAsState()
@@ -121,10 +124,9 @@ fun EquipoFormScreen(
 
             Button(
                 onClick = {
-                    if (equipoId == null) {
-                        viewModel.registrarEquipo { onBack() }
-                    } else {
-                        viewModel.actualizarEquipo { onBack() }
+                    scope.launch {
+                        val guardado = if (equipoId == null) viewModel.registrarEquipo() else viewModel.actualizarEquipo()
+                        if (guardado) onBack()
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
