@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atzael.proyectosemestralg11.data.EquipoDao
 import com.atzael.proyectosemestralg11.data.FotoDao
+import com.atzael.proyectosemestralg11.data.remote.SupabaseClient
 import com.atzael.proyectosemestralg11.util.enViewModelScope
 import com.atzael.proyectosemestralg11.data.OrdenTrabajoDao
 import com.atzael.proyectosemestralg11.data.UsuarioDao
@@ -154,7 +155,9 @@ class TecnicoViewModel(
     fun aceptarOrden(orden: OrdenTrabajo) {
         if (orden.estado != EstadoOrden.PENDIENTE) return
         viewModelScope.launch {
-            ordenDao.update(orden.copy(estado = EstadoOrden.ACEPTADA, motivoRechazo = null))
+            val actualizada = orden.copy(estado = EstadoOrden.ACEPTADA, motivoRechazo = null)
+            ordenDao.update(actualizada)
+            runCatching { SupabaseClient.api.actualizarOrdenTrabajo("eq.${actualizada.id}", actualizada) }
             anunciar("Orden aceptada")
         }
     }
@@ -168,7 +171,9 @@ class TecnicoViewModel(
             return false
         }
         return enViewModelScope {
-            ordenDao.update(orden.copy(estado = EstadoOrden.RECHAZADA_TECNICO, motivoRechazo = motivo.trim()))
+            val rechazada = orden.copy(estado = EstadoOrden.RECHAZADA_TECNICO, motivoRechazo = motivo.trim())
+            ordenDao.update(rechazada)
+            runCatching { SupabaseClient.api.actualizarOrdenTrabajo("eq.${rechazada.id}", rechazada) }
             anunciar("Orden rechazada")
             true
         }
@@ -179,14 +184,14 @@ class TecnicoViewModel(
         if (orden.estado != EstadoOrden.ACEPTADA) return
         if (!avisoAceptado()) return
         viewModelScope.launch {
-            ordenDao.update(
-                orden.copy(
-                    estado = EstadoOrden.EN_CURSO,
-                    checkIn = System.currentTimeMillis(),
-                    checkInLat = ubicacion?.first,
-                    checkInLon = ubicacion?.second
-                )
+            val enCurso = orden.copy(
+                estado = EstadoOrden.EN_CURSO,
+                checkIn = System.currentTimeMillis(),
+                checkInLat = ubicacion?.first,
+                checkInLon = ubicacion?.second
             )
+            ordenDao.update(enCurso)
+            runCatching { SupabaseClient.api.actualizarOrdenTrabajo("eq.${enCurso.id}", enCurso) }
             anunciar(if (ubicacion == null) "Check-in registrado (sin ubicación)" else "Check-in registrado")
         }
     }
@@ -194,7 +199,9 @@ class TecnicoViewModel(
     fun guardarInforme(orden: OrdenTrabajo) {
         if (orden.estado != EstadoOrden.EN_CURSO) return
         viewModelScope.launch {
-            ordenDao.update(orden.conInforme())
+            val conInforme = orden.conInforme()
+            ordenDao.update(conInforme)
+            runCatching { SupabaseClient.api.actualizarOrdenTrabajo("eq.${conInforme.id}", conInforme) }
             anunciar("Informe guardado")
         }
     }
@@ -203,13 +210,13 @@ class TecnicoViewModel(
         if (orden.estado != EstadoOrden.EN_CURSO || orden.checkIn == null || orden.checkOut != null) return
         if (!avisoAceptado()) return
         viewModelScope.launch {
-            ordenDao.update(
-                orden.conInforme().copy(
-                    checkOut = System.currentTimeMillis(),
-                    checkOutLat = ubicacion?.first,
-                    checkOutLon = ubicacion?.second
-                )
+            val conCheckOut = orden.conInforme().copy(
+                checkOut = System.currentTimeMillis(),
+                checkOutLat = ubicacion?.first,
+                checkOutLon = ubicacion?.second
             )
+            ordenDao.update(conCheckOut)
+            runCatching { SupabaseClient.api.actualizarOrdenTrabajo("eq.${conCheckOut.id}", conCheckOut) }
             anunciar(if (ubicacion == null) "Check-out registrado (sin ubicación)" else "Check-out registrado")
         }
     }
@@ -228,10 +235,14 @@ class TecnicoViewModel(
             }
         }
         return enViewModelScope {
-            ordenDao.update(orden.conInforme().copy(estado = EstadoOrden.FINALIZADA))
+            val finalizada = orden.conInforme().copy(estado = EstadoOrden.FINALIZADA)
+            ordenDao.update(finalizada)
+            runCatching { SupabaseClient.api.actualizarOrdenTrabajo("eq.${finalizada.id}", finalizada) }
             // La última mantención del equipo se actualiza al cerrar la OT (HU-03)
             equipoDao.getById(orden.equipoId)?.let { equipo ->
-                equipoDao.update(equipo.copy(ultimaMantencion = hoyUtc()))
+                val eqAct = equipo.copy(ultimaMantencion = hoyUtc())
+                equipoDao.update(eqAct)
+                runCatching { SupabaseClient.api.actualizarEquipo("eq.${eqAct.id}", eqAct) }
             }
             anunciar("Orden finalizada")
             true

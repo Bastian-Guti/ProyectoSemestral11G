@@ -34,7 +34,8 @@ import kotlinx.coroutines.launch
 fun ClienteFormScreen(
     viewModel: ClienteViewModel,
     clienteId: Int?,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onLogout: (() -> Unit)? = null
 ) {
     val scope = rememberCoroutineScope()
     val nombre by viewModel.nombre.collectAsState()
@@ -58,7 +59,8 @@ fun ClienteFormScreen(
         topBar = {
             BarraSuperior(
                 titulo = if (clienteId == null) "Registrar cliente" else "Actualizar cliente",
-                onBack = onBack
+                onBack = onBack,
+                onLogout = onLogout
             )
         }
     ) { innerPadding ->

@@ -23,7 +23,7 @@ import com.atzael.proyectosemestralg11.model.Usuario
         Reprogramacion::class,
         FotoOrden::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -38,12 +38,17 @@ abstract class AppDatabase : RoomDatabase() {
     //   Jefatura 111111111 / 1    Técnico 222222222 / 2    Cliente 333333333 / 3
     //   Técnicos: Juan Pérez 444444444 / juan, Carlos Gómez 555555555 / carlos, Luis Martínez 666666666 / luis
     private object UsuariosDePrueba : Callback() {
+        override fun onCreate(db: SupportSQLiteDatabase) {
+            super.onCreate(db)
+            insertarDatosDemo(db)
+        }
+
         override fun onOpen(db: SupportSQLiteDatabase) {
             super.onOpen(db)
+            insertarDatosDemo(db)
+        }
 
-            // Primero se unifican los RUT con guion de versiones anteriores (evita duplicados)
-            normalizarRutsExistentes(db)
-
+        private fun insertarDatosDemo(db: SupportSQLiteDatabase) {
             db.execSQL(
                 "INSERT OR IGNORE INTO clientes (id, nombre, contacto, telefono, slaHoras) " +
                         "VALUES (1, 'Empresa Demo', 'Cliente Demo', '+56912345678', 24)"
@@ -57,35 +62,6 @@ abstract class AppDatabase : RoomDatabase() {
                         "('555555555', 'Carlos', 'Gómez', 'carlos', 'Tecnico', NULL), " +
                         "('666666666', 'Luis', 'Martínez', 'luis', 'Tecnico', NULL)"
             )
-            // Las contraseñas de prueba siempre vuelven a ser las indicadas arriba. No se borra
-            // la fila para no perder el aviso de datos ya aceptado por cada técnico.
-            db.execSQL(
-                "UPDATE usuarios SET password = CASE rut " +
-                        "WHEN '111111111' THEN '1' WHEN '222222222' THEN '2' WHEN '333333333' THEN '3' " +
-                        "WHEN '444444444' THEN 'juan' WHEN '555555555' THEN 'carlos' ELSE 'luis' END " +
-                        "WHERE rut IN ('111111111', '222222222', '333333333', " +
-                        "'444444444', '555555555', '666666666')"
-            )
-        }
-
-
-        private fun normalizarRutsExistentes(db: SupportSQLiteDatabase) {
-            fun norm(columna: String) = "UPPER(REPLACE(REPLACE($columna, '-', ''), '.', ''))"
-
-            listOf(
-                "ordenes_trabajo" to listOf("tecnicoRut", "creadaPor", "conformidadPor"),
-                "reprogramaciones" to listOf("tecnicoAnterior", "tecnicoNuevo"),
-                "fotos_orden" to listOf("tomadaPor")
-            ).forEach { (tabla, columnas) ->
-                columnas.forEach { columna ->
-                    db.execSQL("UPDATE $tabla SET $columna = ${norm(columna)} WHERE $columna IS NOT NULL AND $columna != ${norm(columna)}")
-                }
-            }
-            db.execSQL(
-                "DELETE FROM usuarios WHERE rut != ${norm("rut")} " +
-                        "AND ${norm("rut")} IN (SELECT rut FROM usuarios)"
-            )
-            db.execSQL("UPDATE usuarios SET rut = ${norm("rut")} WHERE rut != ${norm("rut")}")
         }
     }
 

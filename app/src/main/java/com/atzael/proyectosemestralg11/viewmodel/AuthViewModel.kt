@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atzael.proyectosemestralg11.data.ClienteDao
 import com.atzael.proyectosemestralg11.data.UsuarioDao
+import com.atzael.proyectosemestralg11.data.remote.SupabaseClient
 import com.atzael.proyectosemestralg11.model.Cliente
 import com.atzael.proyectosemestralg11.model.Usuario
 import com.atzael.proyectosemestralg11.util.enViewModelScope
@@ -40,16 +41,27 @@ class AuthViewModel(
 
     // Éxito trae el rol del usuario; Error trae el mensaje para mostrar en el formulario
     suspend fun iniciarSesion(rut: String, password: String): ResultadoAuth {
-        val rut = rut.normalizarRut()
-        val usuario = usuarioDao.getUsuarioByRut(rut)
-        return when {
-            usuario == null -> ResultadoAuth.Error("RUT no registrado.")
-            usuario.password != password -> ResultadoAuth.Error("Contraseña incorrecta.")
-            else -> {
-                _rutActual.value = usuario.rut
-                _nombreActual.value = "${usuario.nombre} ${usuario.apellido}"
-                ResultadoAuth.Exito(usuario.rol)
+        val rutNorm = rut.normalizarRut()
+        var usuario = usuarioDao.getUsuarioByRut(rutNorm)
+
+        // Si el usuario no está en el almacenamiento local del teléfono, busca en Supabase
+        if (usuario == null) {
+            runCatching {
+                val remotos = SupabaseClient.api.getUsuarioByRut("eq.$rutNorm")
+                remotos.firstOrNull()?.also { u ->
+                    usuarioDao.insertUsuario(u) // Guarda copia local en Room
+                    usuario = u
+                }
             }
+        }
+
+        val u = usuario ?: return ResultadoAuth.Error("RUT no registrado.")
+        return if (u.password != password) {
+            ResultadoAuth.Error("Contraseña incorrecta.")
+        } else {
+            _rutActual.value = u.rut
+            _nombreActual.value = "${u.nombre} ${u.apellido}"
+            ResultadoAuth.Exito(u.rol)
         }
     }
 
@@ -61,12 +73,28 @@ class AuthViewModel(
         rol: String,
         clienteId: Int? = null
     ): ResultadoAuth {
-        val rut = rut.normalizarRut()
+        val rutNorm = rut.normalizarRut()
         return enViewModelScope {
-            if (usuarioDao.getUsuarioByRut(rut) != null) {
+            if (usuarioDao.getUsuarioByRut(rutNorm) != null) {
                 ResultadoAuth.Error("El RUT ya está registrado.")
             } else {
-                usuarioDao.insertUsuario(Usuario(rut, nombre, apellido, password, rol, clienteId))
+                val nuevoUsuario = Usuario(
+                    rut = rutNorm,
+                    nombre = nombre,
+                    apellido = apellido,
+                    password = password,
+                    rol = rol,
+                    clienteId = clienteId
+                )
+
+                // 1. Guarda en la base de datos local del teléfono (Room)
+                usuarioDao.insertUsuario(nuevoUsuario)
+
+                // 2. Envía y guarda el nuevo usuario a Supabase en la nube
+                runCatching {
+                    SupabaseClient.api.crearUsuario(nuevoUsuario)
+                }
+
                 ResultadoAuth.Exito(rol)
             }
         }

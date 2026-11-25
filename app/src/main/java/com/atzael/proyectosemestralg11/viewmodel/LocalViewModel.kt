@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atzael.proyectosemestralg11.data.ClienteDao
 import com.atzael.proyectosemestralg11.data.LocalDao
+import com.atzael.proyectosemestralg11.data.remote.SupabaseClient
 import com.atzael.proyectosemestralg11.model.Cliente
 import com.atzael.proyectosemestralg11.model.Local
 import com.atzael.proyectosemestralg11.util.enViewModelScope
@@ -120,7 +121,9 @@ class LocalViewModel(
     suspend fun registrarLocal(): Boolean {
         if (!_isButtonEnabled.value) return false
         return enViewModelScope {
-            localDao.insert(construirLocal().copy(id = 0))
+            val nuevo = construirLocal().copy(id = 0)
+            localDao.insert(nuevo)
+            runCatching { SupabaseClient.api.crearLocal(nuevo) }
             mostrarExito()
             true
         }
@@ -150,7 +153,9 @@ class LocalViewModel(
     suspend fun actualizarLocal(): Boolean {
         if (!_isButtonEnabled.value) return false
         return enViewModelScope {
-            localDao.update(construirLocal())
+            val actualizado = construirLocal()
+            localDao.update(actualizado)
+            runCatching { SupabaseClient.api.actualizarLocal("eq.${actualizado.id}", actualizado) }
             mostrarExito()
             true
         }

@@ -55,6 +55,7 @@ fun TecnicoOrdenScreen(
     viewModel: TecnicoViewModel,
     ordenId: Int,
     onBack: () -> Unit,
+    onLogout: (() -> Unit)? = null,
     onVerFicha: (Int) -> Unit
 ) {
     val context = LocalContext.current
@@ -106,7 +107,7 @@ fun TecnicoOrdenScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = { BarraSuperior(titulo = "OT #$ordenId", onBack = onBack) }
+        topBar = { BarraSuperior(titulo = "OT #$ordenId", onBack = onBack, onLogout = onLogout) }
     ) { innerPadding ->
         if (item == null) {
             Text(
@@ -136,6 +137,7 @@ fun TecnicoOrdenScreen(
                         Dato("Equipo", "${item.equipoNombre} (${item.equipoUbicacion})")
                         Dato("Tipo", orden.tipo)
                         Dato("Prioridad", orden.prioridad)
+                        orden.descripcionProblema?.let { Dato("Descripción del problema", it) }
                         Dato("Fecha de visita", orden.fechaVisita.formatearFecha())
                     }
                 }

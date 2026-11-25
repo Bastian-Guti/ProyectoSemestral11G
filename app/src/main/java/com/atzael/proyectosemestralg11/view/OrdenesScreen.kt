@@ -40,6 +40,7 @@ import com.atzael.proyectosemestralg11.viewmodel.OrdenViewModel
 fun OrdenesScreen(
     viewModel: OrdenViewModel,
     onBack: () -> Unit,
+    onLogout: (() -> Unit)? = null,
     onNuevaOrden: () -> Unit,
     onOrdenClick: (Int) -> Unit
 ) {
@@ -50,7 +51,7 @@ fun OrdenesScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = { BarraSuperior(titulo = "Órdenes de trabajo", onBack = onBack) },
+        topBar = { BarraSuperior(titulo = "Órdenes de trabajo", onBack = onBack, onLogout = onLogout) },
         floatingActionButton = {
             FloatingActionButton(onClick = onNuevaOrden) {
                 Icon(Icons.Default.Add, contentDescription = "Crear orden de trabajo")

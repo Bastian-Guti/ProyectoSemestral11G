@@ -3,6 +3,7 @@ package com.atzael.proyectosemestralg11.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atzael.proyectosemestralg11.data.ClienteDao
+import com.atzael.proyectosemestralg11.data.remote.SupabaseClient
 import com.atzael.proyectosemestralg11.model.Cliente
 import com.atzael.proyectosemestralg11.util.enViewModelScope
 import com.atzael.proyectosemestralg11.util.esTelefonoValido
@@ -117,7 +118,9 @@ class ClienteViewModel(private val clienteDao: ClienteDao) : ViewModel() {
     suspend fun registrarCliente(): Boolean {
         if (!_isButtonEnabled.value) return false
         return enViewModelScope {
-            clienteDao.insert(construirCliente().copy(id = 0))
+            val nuevo = construirCliente().copy(id = 0)
+            clienteDao.insert(nuevo)
+            runCatching { SupabaseClient.api.crearCliente(nuevo) }
             mostrarExito()
             true
         }
@@ -147,7 +150,9 @@ class ClienteViewModel(private val clienteDao: ClienteDao) : ViewModel() {
     suspend fun actualizarCliente(): Boolean {
         if (!_isButtonEnabled.value) return false
         return enViewModelScope {
-            clienteDao.update(construirCliente())
+            val actualizado = construirCliente()
+            clienteDao.update(actualizado)
+            runCatching { SupabaseClient.api.actualizarCliente("eq.${actualizado.id}", actualizado) }
             mostrarExito()
             true
         }

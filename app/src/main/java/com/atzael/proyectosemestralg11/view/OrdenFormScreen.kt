@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,7 +37,8 @@ fun OrdenFormScreen(
     viewModel: OrdenViewModel,
     rutUsuario: String,
     ordenId: Int?,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onLogout: (() -> Unit)? = null
 ) {
     val scope = rememberCoroutineScope()
     val clientes by viewModel.clientes.collectAsState()
@@ -49,6 +51,7 @@ fun OrdenFormScreen(
     val equipoId by viewModel.equipoId.collectAsState()
     val tipo by viewModel.tipo.collectAsState()
     val prioridad by viewModel.prioridad.collectAsState()
+    val descripcionProblema by viewModel.descripcionProblema.collectAsState()
     val tecnicoRut by viewModel.tecnicoRut.collectAsState()
     val fechaVisita by viewModel.fechaVisita.collectAsState()
     val modoEdicion by viewModel.modoEdicion.collectAsState()
@@ -64,7 +67,8 @@ fun OrdenFormScreen(
         topBar = {
             BarraSuperior(
                 titulo = if (ordenId == null) "Crear orden de trabajo" else "Editar OT #$ordenId",
-                onBack = onBack
+                onBack = onBack,
+                onLogout = onLogout
             )
         }
     ) { innerPadding ->
@@ -121,6 +125,14 @@ fun OrdenFormScreen(
                 textoOpcion = { it },
                 onSeleccion = { viewModel.onPrioridadChange(it) },
                 modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = descripcionProblema,
+                onValueChange = { viewModel.onDescripcionProblemaChange(it) },
+                label = { Text("Descripción del problema (Instrucciones para el técnico)") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3
             )
 
             CampoDesplegable(

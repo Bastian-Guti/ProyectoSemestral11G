@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.atzael.proyectosemestralg11.data.ClienteDao
 import com.atzael.proyectosemestralg11.data.EquipoDao
 import com.atzael.proyectosemestralg11.data.FotoDao
+import com.atzael.proyectosemestralg11.data.remote.SupabaseClient
 import com.atzael.proyectosemestralg11.model.FotoOrden
 import com.atzael.proyectosemestralg11.data.LocalDao
 import com.atzael.proyectosemestralg11.data.OrdenTrabajoDao
@@ -138,6 +139,9 @@ class OrdenViewModel(
     private val _prioridad = MutableStateFlow(PrioridadOrden.MEDIA)
     val prioridad: StateFlow<String> = _prioridad.asStateFlow()
 
+    private val _descripcionProblema = MutableStateFlow("")
+    val descripcionProblema: StateFlow<String> = _descripcionProblema.asStateFlow()
+
     private val _tecnicoRut = MutableStateFlow<String?>(null)
     val tecnicoRut: StateFlow<String?> = _tecnicoRut.asStateFlow()
 
@@ -196,6 +200,10 @@ class OrdenViewModel(
         _prioridad.value = newValue
     }
 
+    fun onDescripcionProblemaChange(newValue: String) {
+        _descripcionProblema.value = newValue
+    }
+
     fun onTecnicoChange(rut: String) {
         _tecnicoRut.value = rut
         validate()
@@ -218,18 +226,19 @@ class OrdenViewModel(
     suspend fun registrarOrden(creadaPor: String): Boolean {
         if (!_isButtonEnabled.value) return false
         return enViewModelScope {
-            ordenDao.insert(
-                OrdenTrabajo(
-                    clienteId = _clienteId.value!!,
-                    localId = _localId.value!!,
-                    equipoId = _equipoId.value!!,
-                    tipo = _tipo.value,
-                    prioridad = _prioridad.value,
-                    tecnicoRut = _tecnicoRut.value!!,
-                    fechaVisita = _fechaVisita.value!!,
-                    creadaPor = creadaPor
-                )
+            val nueva = OrdenTrabajo(
+                clienteId = _clienteId.value!!,
+                localId = _localId.value!!,
+                equipoId = _equipoId.value!!,
+                tipo = _tipo.value,
+                prioridad = _prioridad.value,
+                descripcionProblema = _descripcionProblema.value.ifBlank { null },
+                tecnicoRut = _tecnicoRut.value!!,
+                fechaVisita = _fechaVisita.value!!,
+                creadaPor = creadaPor
             )
+            ordenDao.insert(nueva)
+            runCatching { SupabaseClient.api.crearOrdenTrabajo(nueva) }
             mostrarToast()
             resetForm()
             true
@@ -246,6 +255,7 @@ class OrdenViewModel(
                 _equipoId.value = orden.equipoId
                 _tipo.value = orden.tipo
                 _prioridad.value = orden.prioridad
+                _descripcionProblema.value = orden.descripcionProblema ?: ""
                 _tecnicoRut.value = orden.tecnicoRut
                 _fechaVisita.value = orden.fechaVisita
                 validate()
@@ -258,15 +268,16 @@ class OrdenViewModel(
         val original = ordenOriginal ?: return false
         if (!_isButtonEnabled.value) return false
         return enViewModelScope {
-            ordenDao.update(
-                original.copy(
-                    clienteId = _clienteId.value!!,
-                    localId = _localId.value!!,
-                    equipoId = _equipoId.value!!,
-                    tipo = _tipo.value,
-                    prioridad = _prioridad.value
-                )
+            val actualizada = original.copy(
+                clienteId = _clienteId.value!!,
+                localId = _localId.value!!,
+                equipoId = _equipoId.value!!,
+                tipo = _tipo.value,
+                prioridad = _prioridad.value,
+                descripcionProblema = _descripcionProblema.value.ifBlank { null }
             )
+            ordenDao.update(actualizada)
+            runCatching { SupabaseClient.api.actualizarOrdenTrabajo("eq.${actualizada.id}", actualizada) }
             mostrarToast()
             resetForm()
             true
@@ -281,6 +292,7 @@ class OrdenViewModel(
         _equipoId.value = null
         _tipo.value = TipoOrden.PREVENTIVO
         _prioridad.value = PrioridadOrden.MEDIA
+        _descripcionProblema.value = ""
         _tecnicoRut.value = null
         _fechaVisita.value = null
         _isButtonEnabled.value = false
@@ -333,13 +345,14 @@ class OrdenViewModel(
     ) = enViewModelScope {
         // Una OT rechazada por el técnico vuelve a quedar pendiente al reasignarla
         val estado = if (orden.estado == EstadoOrden.RECHAZADA_TECNICO) EstadoOrden.PENDIENTE else orden.estado
+        val actualizada = orden.copy(
+            fechaVisita = nuevaFecha,
+            tecnicoRut = nuevoTecnicoRut,
+            estado = estado,
+            motivoRechazo = if (estado == EstadoOrden.PENDIENTE) null else orden.motivoRechazo
+        )
         ordenDao.reprogramar(
-            orden.copy(
-                fechaVisita = nuevaFecha,
-                tecnicoRut = nuevoTecnicoRut,
-                estado = estado,
-                motivoRechazo = if (estado == EstadoOrden.PENDIENTE) null else orden.motivoRechazo
-            ),
+            actualizada,
             Reprogramacion(
                 ordenId = orden.id,
                 fechaAnterior = orden.fechaVisita,
@@ -349,11 +362,14 @@ class OrdenViewModel(
                 motivo = motivo
             )
         )
+        runCatching { SupabaseClient.api.actualizarOrdenTrabajo("eq.${actualizada.id}", actualizada) }
         mostrarToast()
     }
 
     // La OT no se borra: queda registrada como cancelada
     suspend fun cancelarOrden(orden: OrdenTrabajo) = enViewModelScope {
-        ordenDao.update(orden.copy(estado = EstadoOrden.CANCELADA))
+        val cancelada = orden.copy(estado = EstadoOrden.CANCELADA)
+        ordenDao.update(cancelada)
+        runCatching { SupabaseClient.api.actualizarOrdenTrabajo("eq.${cancelada.id}", cancelada) }
     }
 }

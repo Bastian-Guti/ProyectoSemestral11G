@@ -5,6 +5,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
@@ -50,9 +52,6 @@ private val argumentoId = listOf(navArgument("id") { type = NavType.IntType })
 
 private fun NavBackStackEntry.id(): Int = arguments?.getInt("id") ?: 0
 
-// Cierra solo la pantalla indicada. Si ya no está en la pila (doble toque en "volver", o un aviso
-// que llega tarde después de que el usuario ya retrocedió) no hace nada. Antes se hacía un
-// popBackStack() a ciegas, que podía sacar de más y dejar la pila vacía: pantalla en blanco.
 private fun NavHostController.cerrarPantalla(ruta: String) {
     popBackStack(ruta, inclusive = true)
 }
@@ -63,28 +62,40 @@ private fun NavHostController.irALogin() {
     }
 }
 
+// Obtiene un ViewModel de forma Lazy, vinculado al flujo o al destino en la pila de navegación
+@Composable
+private inline fun <reified T : ViewModel> NavHostController.obtenerViewModel(
+    factory: ViewModelProvider.Factory,
+    rutaPadre: String? = null
+): T {
+    val parentEntry = if (rutaPadre != null) {
+        val entry = currentBackStackEntry
+        remember(entry, rutaPadre) {
+            runCatching { getBackStackEntry(rutaPadre) }.getOrNull()
+        }
+    } else null
+    return if (parentEntry != null) viewModel(parentEntry, factory = factory) else viewModel(factory = factory)
+}
+
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
 
-    // Usamos remember para obtener la instancia solo una vez por ciclo de vida del Composable
     val database = remember { AppDatabase.getDatabase(context) }
     val factory = remember { AppViewModelFactory(database) }
 
+    // Únicamente AuthViewModel se inicializa en la raíz para mantener la sesión global del usuario
     val authViewModel: AuthViewModel = viewModel(factory = factory)
-    val clienteViewModel: ClienteViewModel = viewModel(factory = factory)
-    val localViewModel: LocalViewModel = viewModel(factory = factory)
-    val equipoViewModel: EquipoViewModel = viewModel(factory = factory)
-    val ordenViewModel: OrdenViewModel = viewModel(factory = factory)
-    val reporteViewModel: ReporteViewModel = viewModel(factory = factory)
-    val portalClienteViewModel: PortalClienteViewModel = viewModel(factory = factory)
-    val tecnicoViewModel: TecnicoViewModel = viewModel(factory = factory)
-    val fichaEquipoViewModel: FichaEquipoViewModel = viewModel(factory = factory)
 
     val rutActual by authViewModel.rutActual.collectAsState()
     val nombreActual by authViewModel.nombreActual.collectAsState()
     val clientesRegistrados by authViewModel.clientes.collectAsState()
+
+    val onLogoutGlobal: () -> Unit = {
+        authViewModel.cerrarSesion()
+        navController.irALogin()
+    }
 
     NavHost(navController = navController, startDestination = Rutas.Login.route) {
 
@@ -126,6 +137,7 @@ fun AppNavigation() {
             )
         }
         composable(Rutas.Tecnico.route) {
+            val tecnicoViewModel: TecnicoViewModel = navController.obtenerViewModel(factory)
             TecnicoScreen(
                 rut = rutActual,
                 viewModel = tecnicoViewModel,
@@ -137,23 +149,28 @@ fun AppNavigation() {
             )
         }
         composable(Rutas.TecnicoOrden.route, arguments = argumentoId) { entry ->
+            val tecnicoViewModel: TecnicoViewModel = navController.obtenerViewModel(factory, Rutas.Tecnico.route)
             TecnicoOrdenScreen(
                 viewModel = tecnicoViewModel,
                 ordenId = entry.id(),
                 onBack = { navController.cerrarPantalla(Rutas.TecnicoOrden.route) },
+                onLogout = onLogoutGlobal,
                 onVerFicha = { equipoId -> navController.navigate(Rutas.FichaEquipo.createRoute(equipoId)) }
             )
         }
         composable(Rutas.FichaEquipo.route, arguments = argumentoId) { entry ->
+            val fichaEquipoViewModel: FichaEquipoViewModel = navController.obtenerViewModel(factory)
             FichaEquipoScreen(
                 viewModel = fichaEquipoViewModel,
                 equipoId = entry.id(),
-                onBack = { navController.cerrarPantalla(Rutas.FichaEquipo.route) }
+                onBack = { navController.cerrarPantalla(Rutas.FichaEquipo.route) },
+                onLogout = onLogoutGlobal
             )
         }
 
         // ---------- Portal del cliente ----------
         composable(Rutas.PortalCliente.route) {
+            val portalClienteViewModel: PortalClienteViewModel = navController.obtenerViewModel(factory)
             PortalClienteScreen(
                 rut = rutActual,
                 nombre = nombreActual,
@@ -167,16 +184,19 @@ fun AppNavigation() {
             )
         }
         composable(Rutas.PortalClienteOrden.route, arguments = argumentoId) { entry ->
+            val portalClienteViewModel: PortalClienteViewModel = navController.obtenerViewModel(factory, Rutas.PortalCliente.route)
             PortalClienteOrdenScreen(
                 viewModel = portalClienteViewModel,
                 rutUsuario = rutActual,
                 ordenId = entry.id(),
-                onBack = { navController.cerrarPantalla(Rutas.PortalClienteOrden.route) }
+                onBack = { navController.cerrarPantalla(Rutas.PortalClienteOrden.route) },
+                onLogout = onLogoutGlobal
             )
         }
 
         // ---------- Jefatura ----------
         composable(Rutas.Jefatura.route) {
+            val ordenViewModel: OrdenViewModel = navController.obtenerViewModel(factory)
             JefaturaScreen(
                 nombre = nombreActual,
                 viewModel = ordenViewModel,
@@ -200,9 +220,11 @@ fun AppNavigation() {
 
         // ---------- Órdenes de trabajo ----------
         composable(Rutas.Ordenes.route) {
+            val ordenViewModel: OrdenViewModel = navController.obtenerViewModel(factory, Rutas.Jefatura.route)
             OrdenesScreen(
                 viewModel = ordenViewModel,
                 onBack = { navController.cerrarPantalla(Rutas.Ordenes.route) },
+                onLogout = onLogoutGlobal,
                 onNuevaOrden = {
                     ordenViewModel.resetForm()
                     navController.navigate(Rutas.OrdenNueva.route)
@@ -211,14 +233,17 @@ fun AppNavigation() {
             )
         }
         composable(Rutas.OrdenNueva.route) {
+            val ordenViewModel: OrdenViewModel = navController.obtenerViewModel(factory, Rutas.Jefatura.route)
             OrdenFormScreen(
                 viewModel = ordenViewModel,
                 rutUsuario = rutActual,
                 ordenId = null,
-                onBack = { navController.cerrarPantalla(Rutas.OrdenNueva.route) }
+                onBack = { navController.cerrarPantalla(Rutas.OrdenNueva.route) },
+                onLogout = onLogoutGlobal
             )
         }
         composable(Rutas.OrdenEdicion.route, arguments = argumentoId) { entry ->
+            val ordenViewModel: OrdenViewModel = navController.obtenerViewModel(factory, Rutas.Jefatura.route)
             OrdenFormScreen(
                 viewModel = ordenViewModel,
                 rutUsuario = rutActual,
@@ -226,14 +251,17 @@ fun AppNavigation() {
                 onBack = {
                     ordenViewModel.resetForm()
                     navController.cerrarPantalla(Rutas.OrdenEdicion.route)
-                }
+                },
+                onLogout = onLogoutGlobal
             )
         }
         composable(Rutas.OrdenDetalle.route, arguments = argumentoId) { entry ->
+            val ordenViewModel: OrdenViewModel = navController.obtenerViewModel(factory, Rutas.Jefatura.route)
             OrdenDetalleScreen(
                 viewModel = ordenViewModel,
                 ordenId = entry.id(),
                 onBack = { navController.cerrarPantalla(Rutas.OrdenDetalle.route) },
+                onLogout = onLogoutGlobal,
                 onEditar = { id ->
                     ordenViewModel.resetForm()
                     navController.navigate(Rutas.OrdenEdicion.createRoute(id))
@@ -244,9 +272,11 @@ fun AppNavigation() {
 
         // ---------- Clientes ----------
         composable(Rutas.Clientes.route) {
+            val clienteViewModel: ClienteViewModel = navController.obtenerViewModel(factory)
             ClientesScreen(
                 viewModel = clienteViewModel,
                 onBack = { navController.cerrarPantalla(Rutas.Clientes.route) },
+                onLogout = onLogoutGlobal,
                 onNuevo = {
                     clienteViewModel.resetForm()
                     navController.navigate(Rutas.ClienteNuevo.route)
@@ -258,28 +288,34 @@ fun AppNavigation() {
             )
         }
         composable(Rutas.ClienteNuevo.route) {
+            val clienteViewModel: ClienteViewModel = navController.obtenerViewModel(factory, Rutas.Clientes.route)
             ClienteFormScreen(
                 viewModel = clienteViewModel,
                 clienteId = null,
-                onBack = { navController.cerrarPantalla(Rutas.ClienteNuevo.route) }
+                onBack = { navController.cerrarPantalla(Rutas.ClienteNuevo.route) },
+                onLogout = onLogoutGlobal
             )
         }
         composable(Rutas.ClienteEdicion.route, arguments = argumentoId) { entry ->
+            val clienteViewModel: ClienteViewModel = navController.obtenerViewModel(factory, Rutas.Clientes.route)
             ClienteFormScreen(
                 viewModel = clienteViewModel,
                 clienteId = entry.id(),
                 onBack = {
                     clienteViewModel.resetForm()
                     navController.cerrarPantalla(Rutas.ClienteEdicion.route)
-                }
+                },
+                onLogout = onLogoutGlobal
             )
         }
 
         // ---------- Locales ----------
         composable(Rutas.Locales.route) {
+            val localViewModel: LocalViewModel = navController.obtenerViewModel(factory)
             LocalesScreen(
                 viewModel = localViewModel,
                 onBack = { navController.cerrarPantalla(Rutas.Locales.route) },
+                onLogout = onLogoutGlobal,
                 onNuevo = {
                     localViewModel.resetForm()
                     navController.navigate(Rutas.LocalNuevo.route)
@@ -291,28 +327,34 @@ fun AppNavigation() {
             )
         }
         composable(Rutas.LocalNuevo.route) {
+            val localViewModel: LocalViewModel = navController.obtenerViewModel(factory, Rutas.Locales.route)
             LocalFormScreen(
                 viewModel = localViewModel,
                 localId = null,
-                onBack = { navController.cerrarPantalla(Rutas.LocalNuevo.route) }
+                onBack = { navController.cerrarPantalla(Rutas.LocalNuevo.route) },
+                onLogout = onLogoutGlobal
             )
         }
         composable(Rutas.LocalEdicion.route, arguments = argumentoId) { entry ->
+            val localViewModel: LocalViewModel = navController.obtenerViewModel(factory, Rutas.Locales.route)
             LocalFormScreen(
                 viewModel = localViewModel,
                 localId = entry.id(),
                 onBack = {
                     localViewModel.resetForm()
                     navController.cerrarPantalla(Rutas.LocalEdicion.route)
-                }
+                },
+                onLogout = onLogoutGlobal
             )
         }
 
         // ---------- Equipos ----------
         composable(Rutas.Equipos.route) {
+            val equipoViewModel: EquipoViewModel = navController.obtenerViewModel(factory)
             EquiposScreen(
                 viewModel = equipoViewModel,
                 onBack = { navController.cerrarPantalla(Rutas.Equipos.route) },
+                onLogout = onLogoutGlobal,
                 onNuevo = {
                     equipoViewModel.resetForm()
                     navController.navigate(Rutas.EquipoNuevo.route)
@@ -324,33 +366,42 @@ fun AppNavigation() {
             )
         }
         composable(Rutas.EquipoNuevo.route) {
+            val equipoViewModel: EquipoViewModel = navController.obtenerViewModel(factory, Rutas.Equipos.route)
             EquipoFormScreen(
                 viewModel = equipoViewModel,
                 equipoId = null,
-                onBack = { navController.cerrarPantalla(Rutas.EquipoNuevo.route) }
+                onBack = { navController.cerrarPantalla(Rutas.EquipoNuevo.route) },
+                onLogout = onLogoutGlobal
             )
         }
         composable(Rutas.EquipoEdicion.route, arguments = argumentoId) { entry ->
+            val equipoViewModel: EquipoViewModel = navController.obtenerViewModel(factory, Rutas.Equipos.route)
             EquipoFormScreen(
                 viewModel = equipoViewModel,
                 equipoId = entry.id(),
                 onBack = {
                     equipoViewModel.resetForm()
                     navController.cerrarPantalla(Rutas.EquipoEdicion.route)
-                }
+                },
+                onLogout = onLogoutGlobal
             )
         }
 
-        // ---------- Alertas de clima (reservada, sin funcionalidad todavía) ----------
+        // ---------- Alertas de clima ----------
         composable(Rutas.AlertasClima.route) {
-            AlertasClimaScreen(onBack = { navController.cerrarPantalla(Rutas.AlertasClima.route) })
+            AlertasClimaScreen(
+                onBack = { navController.cerrarPantalla(Rutas.AlertasClima.route) },
+                onLogout = onLogoutGlobal
+            )
         }
 
         // ---------- Reportes ----------
         composable(Rutas.Reportes.route) {
+            val reporteViewModel: ReporteViewModel = navController.obtenerViewModel(factory)
             ReportesScreen(
                 viewModel = reporteViewModel,
-                onBack = { navController.cerrarPantalla(Rutas.Reportes.route) }
+                onBack = { navController.cerrarPantalla(Rutas.Reportes.route) },
+                onLogout = onLogoutGlobal
             )
         }
     }

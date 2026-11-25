@@ -34,7 +34,8 @@ import kotlinx.coroutines.launch
 fun EquipoFormScreen(
     viewModel: EquipoViewModel,
     equipoId: Int?,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onLogout: (() -> Unit)? = null
 ) {
     val scope = rememberCoroutineScope()
     val locales by viewModel.locales.collectAsState()
@@ -63,7 +64,8 @@ fun EquipoFormScreen(
         topBar = {
             BarraSuperior(
                 titulo = if (equipoId == null) "Registrar equipo" else "Actualizar equipo",
-                onBack = onBack
+                onBack = onBack,
+                onLogout = onLogout
             )
         }
     ) { innerPadding ->

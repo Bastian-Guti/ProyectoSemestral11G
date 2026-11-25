@@ -20,11 +20,12 @@ import com.atzael.proyectosemestralg11.view.components.BarraSuperior
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlertasClimaScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onLogout: (() -> Unit)? = null
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = { BarraSuperior(titulo = "Alertas de clima", onBack = onBack) }
+        topBar = { BarraSuperior(titulo = "Alertas de clima", onBack = onBack, onLogout = onLogout) }
     ) { innerPadding ->
         Column(
             modifier = Modifier

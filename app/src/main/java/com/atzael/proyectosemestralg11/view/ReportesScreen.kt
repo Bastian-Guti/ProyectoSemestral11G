@@ -40,7 +40,8 @@ import com.atzael.proyectosemestralg11.viewmodel.ReporteViewModel
 @Composable
 fun ReportesScreen(
     viewModel: ReporteViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onLogout: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -53,7 +54,7 @@ fun ReportesScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = { BarraSuperior(titulo = "Reportes y SLA", onBack = onBack) }
+        topBar = { BarraSuperior(titulo = "Reportes y SLA", onBack = onBack, onLogout = onLogout) }
     ) { innerPadding ->
         Column(
             modifier = Modifier

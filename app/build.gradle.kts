@@ -65,4 +65,11 @@ dependencies {
     // Navigation & Material Icons
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.material.icons.core)
+
+    // Retrofit y convertidor Gson (JSON <-> Kotlin)
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+
+    // Corrutinas (para no bloquear la pantalla)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 }

@@ -40,6 +40,7 @@ import com.atzael.proyectosemestralg11.viewmodel.ClienteViewModel
 fun ClientesScreen(
     viewModel: ClienteViewModel,
     onBack: () -> Unit,
+    onLogout: (() -> Unit)? = null,
     onNuevo: () -> Unit,
     onEditar: (Int) -> Unit
 ) {
@@ -49,7 +50,7 @@ fun ClientesScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = { BarraSuperior(titulo = "Clientes", onBack = onBack) },
+        topBar = { BarraSuperior(titulo = "Clientes", onBack = onBack, onLogout = onLogout) },
         floatingActionButton = {
             FloatingActionButton(onClick = onNuevo) {
                 Icon(Icons.Default.Add, contentDescription = "Agregar cliente")

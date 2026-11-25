@@ -53,6 +53,7 @@ fun OrdenDetalleScreen(
     viewModel: OrdenViewModel,
     ordenId: Int,
     onBack: () -> Unit,
+    onLogout: (() -> Unit)? = null,
     onEditar: (Int) -> Unit,
     onVerFicha: (Int) -> Unit
 ) {
@@ -75,7 +76,7 @@ fun OrdenDetalleScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = { BarraSuperior(titulo = "OT #$ordenId", onBack = onBack) }
+        topBar = { BarraSuperior(titulo = "OT #$ordenId", onBack = onBack, onLogout = onLogout) }
     ) { innerPadding ->
         if (item == null) {
             Text(
@@ -105,6 +106,7 @@ fun OrdenDetalleScreen(
                         Dato("Equipo", "${item.equipoNombre} (${item.equipoUbicacion})")
                         Dato("Tipo", orden.tipo)
                         Dato("Prioridad", orden.prioridad)
+                        orden.descripcionProblema?.let { Dato("Descripción del problema", it) }
                         Dato("Técnico", item.tecnicoNombre)
                         Dato("Fecha de visita", orden.fechaVisita.formatearFecha())
                         Dato("Creada", orden.fechaCreacion.formatearFechaHora())

@@ -34,7 +34,8 @@ import kotlinx.coroutines.launch
 fun LocalFormScreen(
     viewModel: LocalViewModel,
     localId: Int?,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onLogout: (() -> Unit)? = null
 ) {
     val scope = rememberCoroutineScope()
     val clientes by viewModel.clientes.collectAsState()
@@ -58,7 +59,8 @@ fun LocalFormScreen(
         topBar = {
             BarraSuperior(
                 titulo = if (localId == null) "Registrar local" else "Actualizar local",
-                onBack = onBack
+                onBack = onBack,
+                onLogout = onLogout
             )
         }
     ) { innerPadding ->

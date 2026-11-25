@@ -11,6 +11,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -61,11 +62,11 @@ class ClienteViewModelTest {
     }
 
     @Test
-    fun `registrar cliente con datos validos`() {
+    fun `registrar cliente con datos validos`() = runTest {
         completarFormularioValido()
         assertTrue(viewModel.isButtonEnabled.value)
 
-        viewModel.registrarCliente { }
+        viewModel.registrarCliente()
 
         coVerify {
             clienteDao.insert(
@@ -81,12 +82,12 @@ class ClienteViewModelTest {
     }
 
     @Test
-    fun `actualizar cliente conserva su id`() {
+    fun `actualizar cliente conserva su id`() = runTest {
         coEvery { clienteDao.getById(5) } returns Cliente(5, "Antiguo", "Pedro", "+56911111111", 12)
 
         viewModel.cargarCliente(5)
         viewModel.onNombreChange("Nuevo nombre")
-        viewModel.actualizarCliente { }
+        viewModel.actualizarCliente()
 
         coVerify {
             clienteDao.update(Cliente(5, "Nuevo nombre", "Pedro", "+56911111111", 12))

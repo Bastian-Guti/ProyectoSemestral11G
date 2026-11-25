@@ -29,7 +29,8 @@ import com.atzael.proyectosemestralg11.viewmodel.FichaEquipoViewModel
 fun FichaEquipoScreen(
     viewModel: FichaEquipoViewModel,
     equipoId: Int,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onLogout: (() -> Unit)? = null
 ) {
     val equipo by viewModel.equipo.collectAsState()
     val ubicacionTexto by viewModel.ubicacionTexto.collectAsState()
@@ -41,7 +42,7 @@ fun FichaEquipoScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = { BarraSuperior(titulo = "Ficha del equipo", onBack = onBack) }
+        topBar = { BarraSuperior(titulo = "Ficha del equipo", onBack = onBack, onLogout = onLogout) }
     ) { innerPadding ->
         val ficha = equipo
         if (ficha == null) {

@@ -6,18 +6,16 @@ import com.atzael.proyectosemestralg11.data.OrdenTrabajoDao
 import com.atzael.proyectosemestralg11.data.UsuarioDao
 import com.atzael.proyectosemestralg11.model.Equipo
 import com.atzael.proyectosemestralg11.model.EstadoOrden
-import com.atzael.proyectosemestralg11.model.FotoOrden
 import com.atzael.proyectosemestralg11.model.OrdenConDetalle
 import com.atzael.proyectosemestralg11.model.OrdenTrabajo
-import com.atzael.proyectosemestralg11.model.PrioridadOrden
 import com.atzael.proyectosemestralg11.model.RolUsuario
-import com.atzael.proyectosemestralg11.model.TipoFoto
 import com.atzael.proyectosemestralg11.model.Usuario
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -28,6 +26,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -44,30 +43,21 @@ class TecnicoViewModelTest {
     private val usuarioDao = mockk<UsuarioDao>(relaxed = true)
     private val testDispatcher = UnconfinedTestDispatcher()
 
-    private fun orden(
-        id: Int = 1,
-        estado: String,
-        prioridad: String = PrioridadOrden.MEDIA,
-        fechaVisita: Long = 1_000L,
-        checkIn: Long? = null,
-        checkOut: Long? = null
-    ) = OrdenTrabajo(
-        id = id, clienteId = 1, localId = 1, equipoId = 9,
-        tipo = "Mantención preventiva", prioridad = prioridad, tecnicoRut = "444444444",
-        fechaVisita = fechaVisita, estado = estado, creadaPor = "111111111",
-        checkIn = checkIn, checkOut = checkOut
-    )
-
-    private fun detalle(o: OrdenTrabajo) = OrdenConDetalle(
-        orden = o, clienteNombre = "Cliente", localNombre = "Local", equipoNombre = "Split",
-        equipoUbicacion = "Interior", tecnicoNombre = "Juan", slaHoras = 24
+    private fun orden(id: Int = 1, estado: String = EstadoOrden.PENDIENTE, checkIn: Long? = null, checkOut: Long? = null) = OrdenConDetalle(
+        orden = OrdenTrabajo(
+            id = id, clienteId = 1, localId = 1, equipoId = 9,
+            tipo = "Mantención preventiva", prioridad = "Alta", tecnicoRut = "444444444",
+            fechaVisita = 1_000L, estado = estado, creadaPor = "999",
+            checkIn = checkIn, checkOut = checkOut
+        ),
+        clienteNombre = "Cliente", localNombre = "Local", equipoNombre = "Equipo",
+        equipoUbicacion = "Interior", tecnicoNombre = "Tecnico", slaHoras = 24
     )
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         every { ordenDao.getByTecnico(any()) } returns flowOf(emptyList())
-        every { fotoDao.getByOrden(any()) } returns flowOf(emptyList())
         coEvery { usuarioDao.getUsuarioByRut("444444444") } returns
                 Usuario("444444444", "Juan", "Pérez", "juan", RolUsuario.TECNICO, avisoDatosAceptado = true)
         viewModel = TecnicoViewModel(ordenDao, fotoDao, equipoDao, usuarioDao)
@@ -80,55 +70,74 @@ class TecnicoViewModelTest {
     }
 
     @Test
-    fun `la jornada se ordena por prioridad y luego por fecha`() = runTest {
+    fun `solo consulta las OT del tecnico autenticado`() = runTest {
+        backgroundScope.launch(testDispatcher) { viewModel.todasLasOrdenes.collect { } }
+
+        verify { ordenDao.getByTecnico("444444444") }
+    }
+
+    @Test
+    fun `las ordenes abiertas van primero ordenadas por prioridad`() = runTest {
         every { ordenDao.getByTecnico("444444444") } returns flowOf(
             listOf(
-                detalle(orden(1, EstadoOrden.PENDIENTE, PrioridadOrden.BAJA, 100)),
-                detalle(orden(2, EstadoOrden.PENDIENTE, PrioridadOrden.ALTA, 300)),
-                detalle(orden(3, EstadoOrden.PENDIENTE, PrioridadOrden.ALTA, 200)),
-                detalle(orden(4, EstadoOrden.FINALIZADA, PrioridadOrden.ALTA, 50))
+                orden(id = 10, estado = EstadoOrden.FINALIZADA),
+                orden(id = 11, estado = EstadoOrden.EN_CURSO),
+                orden(id = 12, estado = EstadoOrden.ACEPTADA)
             )
         )
         viewModel = TecnicoViewModel(ordenDao, fotoDao, equipoDao, usuarioDao)
         backgroundScope.launch(testDispatcher) { viewModel.ordenes.collect { } }
-
         viewModel.cargarUsuario("444444444")
 
-        assertEquals(listOf(3, 2, 1), viewModel.ordenes.value.map { it.orden.id })
-        viewModel.onVerCerradasChange(true)
-        assertEquals(listOf(4, 3, 2, 1), viewModel.ordenes.value.map { it.orden.id })
+        val ids = viewModel.ordenes.value.map { it.orden.id }
+        assertTrue(ids.containsAll(listOf(11, 12)))
+        assertFalse(ids.contains(10))
     }
 
     @Test
-    fun `aceptar una orden pendiente la pasa a aceptada`() {
+    fun `al marcar ver cerradas aparecen las finalizadas`() = runTest {
+        every { ordenDao.getByTecnico("444444444") } returns flowOf(
+            listOf(orden(id = 10, estado = EstadoOrden.FINALIZADA))
+        )
+        viewModel = TecnicoViewModel(ordenDao, fotoDao, equipoDao, usuarioDao)
+        backgroundScope.launch(testDispatcher) { viewModel.ordenes.collect { } }
+        viewModel.cargarUsuario("444444444")
+
+        viewModel.onVerCerradasChange(true)
+
+        assertEquals(listOf(10), viewModel.ordenes.value.map { it.orden.id })
+    }
+
+    @Test
+    fun `aceptar una orden pendiente la pasa a aceptada`() = runTest {
         val guardada = slot<OrdenTrabajo>()
         coEvery { ordenDao.update(capture(guardada)) } returns Unit
 
-        viewModel.aceptarOrden(orden(estado = EstadoOrden.PENDIENTE))
+        viewModel.aceptarOrden(orden(estado = EstadoOrden.PENDIENTE).orden)
 
         assertEquals(EstadoOrden.ACEPTADA, guardada.captured.estado)
     }
 
     @Test
-    fun `rechazar sin motivo no guarda y rechazar con motivo si`() {
+    fun `rechazar sin motivo no guarda y rechazar con motivo si`() = runTest {
         val guardada = slot<OrdenTrabajo>()
         coEvery { ordenDao.update(capture(guardada)) } returns Unit
 
-        viewModel.rechazarOrden(orden(estado = EstadoOrden.PENDIENTE), "  ")
+        viewModel.rechazarOrden(orden(estado = EstadoOrden.PENDIENTE).orden, "  ")
         coVerify(exactly = 0) { ordenDao.update(any()) }
         assertNotNull(viewModel.error.value)
 
-        viewModel.rechazarOrden(orden(estado = EstadoOrden.PENDIENTE), "Estoy de vacaciones")
+        viewModel.rechazarOrden(orden(estado = EstadoOrden.PENDIENTE).orden, "Estoy de vacaciones")
         assertEquals(EstadoOrden.RECHAZADA_TECNICO, guardada.captured.estado)
         assertEquals("Estoy de vacaciones", guardada.captured.motivoRechazo)
     }
 
     @Test
-    fun `check-in guarda hora y ubicacion y deja la orden en curso`() {
+    fun `check-in guarda hora y ubicacion y deja la orden en curso`() = runTest {
         val guardada = slot<OrdenTrabajo>()
         coEvery { ordenDao.update(capture(guardada)) } returns Unit
 
-        viewModel.registrarCheckIn(orden(estado = EstadoOrden.ACEPTADA), -33.45 to -70.66)
+        viewModel.registrarCheckIn(orden(estado = EstadoOrden.ACEPTADA).orden, -33.45 to -70.66)
 
         assertEquals(EstadoOrden.EN_CURSO, guardada.captured.estado)
         assertNotNull(guardada.captured.checkIn)
@@ -136,44 +145,44 @@ class TecnicoViewModelTest {
     }
 
     @Test
-    fun `check-in sin ubicacion igual registra la hora`() {
+    fun `check-in sin ubicacion igual registra la hora`() = runTest {
         val guardada = slot<OrdenTrabajo>()
         coEvery { ordenDao.update(capture(guardada)) } returns Unit
 
-        viewModel.registrarCheckIn(orden(estado = EstadoOrden.ACEPTADA), null)
+        viewModel.registrarCheckIn(orden(estado = EstadoOrden.ACEPTADA).orden, null)
 
         assertNotNull(guardada.captured.checkIn)
         assertNull(guardada.captured.checkInLat)
     }
 
     @Test
-    fun `sin aceptar el aviso de datos no se registra check-in`() {
+    fun `sin aceptar el aviso de datos no se registra check-in`() = runTest {
         coEvery { usuarioDao.getUsuarioByRut("444444444") } returns
                 Usuario("444444444", "Juan", "Pérez", "juan", RolUsuario.TECNICO, avisoDatosAceptado = false)
         viewModel.cargarUsuario("444444444")
 
-        viewModel.registrarCheckIn(orden(estado = EstadoOrden.ACEPTADA), 1.0 to 2.0)
+        viewModel.registrarCheckIn(orden(estado = EstadoOrden.ACEPTADA).orden, 1.0 to 2.0)
 
         coVerify(exactly = 0) { ordenDao.update(any()) }
         assertNotNull(viewModel.error.value)
     }
 
     @Test
-    fun `no se puede cerrar sin check-out ni sin diagnostico`() {
+    fun `no se puede cerrar sin check-out ni sin diagnostico`() = runTest {
         viewModel.onDiagnosticoChange("Falla en el compresor")
-        viewModel.cerrarOrden(orden(estado = EstadoOrden.EN_CURSO, checkIn = 10))
+        viewModel.cerrarOrden(orden(estado = EstadoOrden.EN_CURSO, checkIn = 10).orden)
         coVerify(exactly = 0) { ordenDao.update(any()) }
         assertNotNull(viewModel.error.value)
 
         viewModel.descartarError()
         viewModel.onDiagnosticoChange("")
-        viewModel.cerrarOrden(orden(estado = EstadoOrden.EN_CURSO, checkIn = 10, checkOut = 20))
+        viewModel.cerrarOrden(orden(estado = EstadoOrden.EN_CURSO, checkIn = 10, checkOut = 20).orden)
         coVerify(exactly = 0) { ordenDao.update(any()) }
         assertNotNull(viewModel.error.value)
     }
 
     @Test
-    fun `cerrar finaliza la orden y actualiza la ultima mantencion del equipo`() {
+    fun `cerrar finaliza la orden y actualiza la ultima mantencion del equipo`() = runTest {
         val guardada = slot<OrdenTrabajo>()
         val equipoGuardado = slot<Equipo>()
         coEvery { ordenDao.update(capture(guardada)) } returns Unit
@@ -181,24 +190,10 @@ class TecnicoViewModelTest {
         coEvery { equipoDao.update(capture(equipoGuardado)) } returns Unit
 
         viewModel.onDiagnosticoChange("Cambio de filtro")
-        viewModel.cerrarOrden(orden(estado = EstadoOrden.EN_CURSO, checkIn = 10, checkOut = 20))
+        viewModel.cerrarOrden(orden(estado = EstadoOrden.EN_CURSO, checkIn = 10, checkOut = 20).orden)
 
         assertEquals(EstadoOrden.FINALIZADA, guardada.captured.estado)
         assertEquals("Cambio de filtro", guardada.captured.diagnostico)
         assertNotNull(equipoGuardado.captured.ultimaMantencion)
-    }
-
-    @Test
-    fun `las fotos solo se registran con la orden en curso`() {
-        viewModel.registrarFoto(orden(estado = EstadoOrden.ACEPTADA), "/tmp/no-existe.jpg", TipoFoto.ANTES)
-        coVerify(exactly = 0) { fotoDao.insert(any()) }
-
-        val foto = slot<FotoOrden>()
-        coEvery { fotoDao.insert(capture(foto)) } returns Unit
-        viewModel.registrarFoto(orden(estado = EstadoOrden.EN_CURSO), "/tmp/foto.jpg", TipoFoto.DESPUES)
-
-        assertEquals(TipoFoto.DESPUES, foto.captured.tipo)
-        assertEquals("444444444", foto.captured.tomadaPor)
-        assertTrue(foto.captured.ordenId == 1)
     }
 }

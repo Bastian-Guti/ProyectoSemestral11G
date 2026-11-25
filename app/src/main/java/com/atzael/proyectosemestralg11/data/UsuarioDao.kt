@@ -23,4 +23,7 @@ interface UsuarioDao {
 
     @Query("SELECT * FROM usuarios WHERE rol = 'Tecnico' ORDER BY nombre")
     fun getTecnicos(): Flow<List<Usuario>>
+
+    @Query("SELECT * FROM usuarios")
+    suspend fun getAllUsuarios(): List<Usuario>
 }

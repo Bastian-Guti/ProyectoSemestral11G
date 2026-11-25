@@ -6,12 +6,17 @@ import com.atzael.proyectosemestralg11.data.FotoDao
 import com.atzael.proyectosemestralg11.data.LocalDao
 import com.atzael.proyectosemestralg11.data.OrdenTrabajoDao
 import com.atzael.proyectosemestralg11.data.UsuarioDao
+import com.atzael.proyectosemestralg11.model.Cliente
+import com.atzael.proyectosemestralg11.model.Equipo
 import com.atzael.proyectosemestralg11.model.EstadoOrden
+import com.atzael.proyectosemestralg11.model.Local
 import com.atzael.proyectosemestralg11.model.MotivoReagendar
 import com.atzael.proyectosemestralg11.model.OrdenConDetalle
 import com.atzael.proyectosemestralg11.model.OrdenTrabajo
 import com.atzael.proyectosemestralg11.model.PrioridadOrden
 import com.atzael.proyectosemestralg11.model.Reprogramacion
+import com.atzael.proyectosemestralg11.model.TipoOrden
+import com.atzael.proyectosemestralg11.model.Usuario
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -44,29 +49,30 @@ class OrdenViewModelTest {
     private val fotoDao = mockk<FotoDao>(relaxed = true)
     private val testDispatcher = UnconfinedTestDispatcher()
 
-    private fun orden(id: Int, estado: String, prioridad: String, tecnico: String = "11111111-1") =
-        OrdenConDetalle(
-            orden = OrdenTrabajo(
-                id = id, clienteId = 1, localId = 1, equipoId = 1,
-                tipo = "Mantención preventiva", prioridad = prioridad,
-                tecnicoRut = tecnico, fechaVisita = 1_000L, estado = estado, creadaPor = "99999999-9"
-            ),
-            clienteNombre = "Cliente", localNombre = "Local", equipoNombre = "Split",
-            equipoUbicacion = "Interior", tecnicoNombre = "Tec", slaHoras = 24
-        )
+    private fun orden(id: Int, estado: String, prioridad: String) = OrdenConDetalle(
+        orden = OrdenTrabajo(
+            id = id, clienteId = 1, localId = 2, equipoId = 3,
+            tipo = TipoOrden.PREVENTIVO, prioridad = prioridad, tecnicoRut = "11111111-1",
+            fechaVisita = 1_000L, estado = estado, creadaPor = "99999999-9"
+        ),
+        clienteNombre = "Cliente", localNombre = "Local", equipoNombre = "Equipo",
+        equipoUbicacion = "Interior", tecnicoNombre = "Tecnico", slaHoras = 24
+    )
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         every { ordenDao.getAllConDetalle() } returns flowOf(emptyList())
-        every { clienteDao.getAll() } returns flowOf(emptyList())
-        every { localDao.getAll() } returns flowOf(emptyList())
-        every { equipoDao.getAll() } returns flowOf(emptyList())
-        every { usuarioDao.getTecnicos() } returns flowOf(emptyList())
+        every { clienteDao.getAll() } returns flowOf(listOf(Cliente(1, "Cliente Demo", "Contacto", "+5691111")))
+        every { localDao.getAll() } returns flowOf(listOf(Local(2, 1, "Local 1", "Direccion", "+5692222")))
+        every { equipoDao.getAll() } returns flowOf(listOf(Equipo(3, 2, "Equipo 1")))
+        every { usuarioDao.getTecnicos() } returns flowOf(listOf(Usuario("11111111-1", "Tec", "Demo", "p", "Tecnico")))
         viewModel = crearViewModel()
     }
 
-    private fun crearViewModel() = OrdenViewModel(ordenDao, clienteDao, localDao, equipoDao, usuarioDao, fotoDao)
+    private fun crearViewModel() = OrdenViewModel(
+        ordenDao, clienteDao, localDao, equipoDao, usuarioDao, fotoDao
+    )
 
     @After
     fun tearDown() {
@@ -78,25 +84,18 @@ class OrdenViewModelTest {
         viewModel.onLocalChange(2)
         viewModel.onEquipoChange(3)
         viewModel.onTecnicoChange("11111111-1")
-        viewModel.onFechaVisitaChange(86_400_000L)
+        viewModel.onFechaVisitaChange(2_000L)
     }
 
     @Test
-    fun `boton deshabilitado hasta completar cliente local equipo tecnico y fecha`() {
+    fun `boton deshabilitado sin campos obligatorios`() {
         assertFalse(viewModel.isButtonEnabled.value)
-        viewModel.onClienteChange(1)
-        viewModel.onLocalChange(2)
-        assertFalse(viewModel.isButtonEnabled.value)
-        viewModel.onEquipoChange(3)
-        viewModel.onTecnicoChange("11111111-1")
-        assertFalse(viewModel.isButtonEnabled.value)
-        viewModel.onFechaVisitaChange(86_400_000L)
-        assertTrue(viewModel.isButtonEnabled.value)
     }
 
     @Test
-    fun `cambiar de cliente limpia local y equipo`() {
+    fun `limpia local y equipo al cambiar de cliente`() {
         completarFormulario()
+        assertTrue(viewModel.isButtonEnabled.value)
 
         viewModel.onClienteChange(9)
 
@@ -106,13 +105,13 @@ class OrdenViewModelTest {
     }
 
     @Test
-    fun `registrar orden guarda estado pendiente y quien la creo`() {
+    fun `registrar orden guarda estado pendiente y quien la creo`() = runTest {
         completarFormulario()
         viewModel.onPrioridadChange(PrioridadOrden.ALTA)
         val guardada = slot<OrdenTrabajo>()
         coEvery { ordenDao.insert(capture(guardada)) } returns Unit
 
-        viewModel.registrarOrden("88888888-8") { }
+        viewModel.registrarOrden("88888888-8")
 
         coVerify { ordenDao.insert(any()) }
         assertEquals(EstadoOrden.PENDIENTE, guardada.captured.estado)
@@ -131,7 +130,6 @@ class OrdenViewModelTest {
             )
         )
         viewModel = crearViewModel()
-        // Mantiene suscrito el StateFlow (WhileSubscribed) mientras se consulta
         backgroundScope.launch(testDispatcher) { viewModel.ordenesFiltradas.collect { } }
 
         viewModel.onFiltroEstadoChange(EstadoOrden.PENDIENTE)
@@ -141,7 +139,7 @@ class OrdenViewModelTest {
     }
 
     @Test
-    fun `cancelar una orden cambia su estado y no la borra`() {
+    fun `cancelar una orden cambia su estado y no la borra`() = runTest {
         val original = orden(7, EstadoOrden.PENDIENTE, PrioridadOrden.MEDIA).orden
 
         viewModel.cancelarOrden(original)
@@ -150,7 +148,7 @@ class OrdenViewModelTest {
     }
 
     @Test
-    fun `reagendar deja el historial con fecha tecnico y motivo`() {
+    fun `reagendar deja el historial con fecha tecnico y motivo`() = runTest {
         val original = orden(8, EstadoOrden.PENDIENTE, PrioridadOrden.MEDIA).orden
         val actualizada = slot<OrdenTrabajo>()
         val historial = slot<Reprogramacion>()

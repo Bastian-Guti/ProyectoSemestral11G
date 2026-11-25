@@ -6,6 +6,7 @@ import com.atzael.proyectosemestralg11.data.ClienteDao
 import com.atzael.proyectosemestralg11.data.FotoDao
 import com.atzael.proyectosemestralg11.data.OrdenTrabajoDao
 import com.atzael.proyectosemestralg11.data.UsuarioDao
+import com.atzael.proyectosemestralg11.data.remote.SupabaseClient
 import com.atzael.proyectosemestralg11.model.EstadoConformidad
 import com.atzael.proyectosemestralg11.model.EstadoOrden
 import com.atzael.proyectosemestralg11.model.FotoOrden
@@ -128,14 +129,14 @@ class PortalClienteViewModel(
             return false
         }
         return enViewModelScope {
-            ordenDao.update(
-                item.orden.copy(
-                    conformidad = if (conforme) EstadoConformidad.CONFORME else EstadoConformidad.RECHAZADA,
-                    observacionCliente = texto.ifBlank { null },
-                    fechaConformidad = System.currentTimeMillis(),
-                    conformidadPor = rutUsuario
-                )
+            val validada = item.orden.copy(
+                conformidad = if (conforme) EstadoConformidad.CONFORME else EstadoConformidad.RECHAZADA,
+                observacionCliente = texto.ifBlank { null },
+                fechaConformidad = System.currentTimeMillis(),
+                conformidadPor = rutUsuario
             )
+            ordenDao.update(validada)
+            runCatching { SupabaseClient.api.actualizarOrdenTrabajo("eq.${validada.id}", validada) }
             _showToast.value = true
             delay(2000)
             _showToast.value = false

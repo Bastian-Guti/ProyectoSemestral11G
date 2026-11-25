@@ -1,6 +1,7 @@
 package com.atzael.proyectosemestralg11.viewmodel
 
 import com.atzael.proyectosemestralg11.data.ClienteDao
+import com.atzael.proyectosemestralg11.data.FotoDao
 import com.atzael.proyectosemestralg11.data.OrdenTrabajoDao
 import com.atzael.proyectosemestralg11.data.UsuarioDao
 import com.atzael.proyectosemestralg11.model.Cliente
@@ -38,6 +39,7 @@ class PortalClienteViewModelTest {
     private val ordenDao = mockk<OrdenTrabajoDao>(relaxed = true)
     private val usuarioDao = mockk<UsuarioDao>(relaxed = true)
     private val clienteDao = mockk<ClienteDao>(relaxed = true)
+    private val fotoDao = mockk<FotoDao>(relaxed = true)
     private val testDispatcher = UnconfinedTestDispatcher()
 
     private fun item(id: Int, estado: String, conformidad: String? = null) = OrdenConDetalle(
@@ -55,7 +57,7 @@ class PortalClienteViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         every { ordenDao.getByCliente(any()) } returns flowOf(emptyList())
-        viewModel = PortalClienteViewModel(ordenDao, usuarioDao, clienteDao)
+        viewModel = PortalClienteViewModel(ordenDao, usuarioDao, clienteDao, fotoDao)
     }
 
     @After
@@ -90,7 +92,7 @@ class PortalClienteViewModelTest {
     }
 
     @Test
-    fun `confirmar conformidad registra fecha y usuario`() {
+    fun `confirmar conformidad registra fecha y usuario`() = runTest {
         val guardada = slot<OrdenTrabajo>()
         coEvery { ordenDao.update(capture(guardada)) } returns Unit
 
@@ -102,7 +104,7 @@ class PortalClienteViewModelTest {
     }
 
     @Test
-    fun `rechazar sin observaciones no guarda y muestra error`() {
+    fun `rechazar sin observaciones no guarda y muestra error`() = runTest {
         viewModel.validarConformidad(item(1, EstadoOrden.FINALIZADA), false, "55555555-5")
 
         coVerify(exactly = 0) { ordenDao.update(any()) }
@@ -110,7 +112,7 @@ class PortalClienteViewModelTest {
     }
 
     @Test
-    fun `rechazar con observaciones guarda el motivo`() {
+    fun `rechazar con observaciones guarda el motivo`() = runTest {
         val guardada = slot<OrdenTrabajo>()
         coEvery { ordenDao.update(capture(guardada)) } returns Unit
 
@@ -123,7 +125,7 @@ class PortalClienteViewModelTest {
     }
 
     @Test
-    fun `no permite validar una OT sin finalizar ni una ya validada`() {
+    fun `no permite validar una OT sin finalizar ni una ya validada`() = runTest {
         viewModel.validarConformidad(item(1, EstadoOrden.PENDIENTE), true, "55555555-5")
         viewModel.validarConformidad(
             item(2, EstadoOrden.FINALIZADA, EstadoConformidad.CONFORME), true, "55555555-5"

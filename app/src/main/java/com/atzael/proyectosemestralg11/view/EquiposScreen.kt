@@ -41,6 +41,7 @@ import com.atzael.proyectosemestralg11.viewmodel.EquipoViewModel
 fun EquiposScreen(
     viewModel: EquipoViewModel,
     onBack: () -> Unit,
+    onLogout: (() -> Unit)? = null,
     onNuevo: () -> Unit,
     onEditar: (Int) -> Unit
 ) {
@@ -50,9 +51,13 @@ fun EquiposScreen(
     val errorEliminar by viewModel.errorEliminar.collectAsState()
     var equipoAEliminar by remember { mutableStateOf<Equipo?>(null) }
 
+    // Mapas de acceso O(1) para evitar búsquedas lineales O(N) al renderizar cada renglón de la lista
+    val localesMap = remember(locales) { locales.associateBy { it.id } }
+    val clientesMap = remember(clientes) { clientes.associateBy { it.id } }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = { BarraSuperior(titulo = "Equipos", onBack = onBack) },
+        topBar = { BarraSuperior(titulo = "Equipos", onBack = onBack, onLogout = onLogout) },
         floatingActionButton = {
             FloatingActionButton(onClick = onNuevo) {
                 Icon(Icons.Default.Add, contentDescription = "Agregar equipo")
@@ -78,8 +83,8 @@ fun EquiposScreen(
                     .padding(innerPadding)
             ) {
                 items(equipos, key = { it.id }) { equipo ->
-                    val local = locales.firstOrNull { it.id == equipo.localId }
-                    val cliente = clientes.firstOrNull { it.id == local?.clienteId }
+                    val local = localesMap[equipo.localId]
+                    val cliente = local?.let { clientesMap[it.clienteId] }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

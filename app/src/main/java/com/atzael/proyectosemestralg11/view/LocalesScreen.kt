@@ -40,6 +40,7 @@ import com.atzael.proyectosemestralg11.viewmodel.LocalViewModel
 fun LocalesScreen(
     viewModel: LocalViewModel,
     onBack: () -> Unit,
+    onLogout: (() -> Unit)? = null,
     onNuevo: () -> Unit,
     onEditar: (Int) -> Unit
 ) {
@@ -48,9 +49,12 @@ fun LocalesScreen(
     val errorEliminar by viewModel.errorEliminar.collectAsState()
     var localAEliminar by remember { mutableStateOf<Local?>(null) }
 
+    // Mapa asociativo O(1) para evitar la búsqueda lineal O(N) por renglón
+    val clientesMap = remember(clientes) { clientes.associateBy { it.id } }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = { BarraSuperior(titulo = "Locales", onBack = onBack) },
+        topBar = { BarraSuperior(titulo = "Locales", onBack = onBack, onLogout = onLogout) },
         floatingActionButton = {
             FloatingActionButton(onClick = onNuevo) {
                 Icon(Icons.Default.Add, contentDescription = "Agregar local")
@@ -84,7 +88,7 @@ fun LocalesScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = clientes.firstOrNull { it.id == local.clienteId }?.nombre ?: "Cliente #${local.clienteId}",
+                                text = clientesMap[local.clienteId]?.nombre ?: "Cliente #${local.clienteId}",
                                 style = MaterialTheme.typography.bodySmall
                             )
                             Text(local.nombre, style = MaterialTheme.typography.titleLarge)

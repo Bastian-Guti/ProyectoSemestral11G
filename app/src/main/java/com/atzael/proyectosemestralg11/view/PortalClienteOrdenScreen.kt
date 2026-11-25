@@ -40,7 +40,8 @@ fun PortalClienteOrdenScreen(
     viewModel: PortalClienteViewModel,
     rutUsuario: String,
     ordenId: Int,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onLogout: (() -> Unit)? = null
 ) {
     val scope = rememberCoroutineScope()
     val ordenes by viewModel.todasLasOrdenes.collectAsState()
@@ -64,7 +65,7 @@ fun PortalClienteOrdenScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = { BarraSuperior(titulo = "OT #$ordenId", onBack = onBack) }
+        topBar = { BarraSuperior(titulo = "OT #$ordenId", onBack = onBack, onLogout = onLogout) }
     ) { innerPadding ->
         if (item == null) {
             Text(

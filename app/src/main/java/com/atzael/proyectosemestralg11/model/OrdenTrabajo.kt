@@ -37,6 +37,7 @@ data class OrdenTrabajo(
     val equipoId: Int,
     val tipo: String, // TipoOrden
     val prioridad: String, // PrioridadOrden
+    val descripcionProblema: String? = null, // Descripción e instrucciones para el técnico
     val tecnicoRut: String, // RUT del técnico asignado
     val fechaVisita: Long, // Fecha (UTC) de la visita programada
     val estado: String = EstadoOrden.PENDIENTE,

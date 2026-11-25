@@ -5,6 +5,8 @@
     <!-- Ubicación solo en check-in y check-out del técnico -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!-- La cámara es opcional: también se puede elegir una foto de la galería -->
     <uses-feature

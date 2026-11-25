@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.atzael.proyectosemestralg11.data.ClienteDao
 import com.atzael.proyectosemestralg11.data.EquipoDao
 import com.atzael.proyectosemestralg11.data.LocalDao
+import com.atzael.proyectosemestralg11.data.remote.SupabaseClient
 import com.atzael.proyectosemestralg11.model.Cliente
 import com.atzael.proyectosemestralg11.model.Equipo
 import com.atzael.proyectosemestralg11.model.Local
@@ -120,7 +121,9 @@ class EquipoViewModel(
     suspend fun registrarEquipo(): Boolean {
         if (!_isButtonEnabled.value) return false
         return enViewModelScope {
-            equipoDao.insert(construirEquipo().copy(id = 0))
+            val nuevo = construirEquipo().copy(id = 0)
+            equipoDao.insert(nuevo)
+            runCatching { SupabaseClient.api.crearEquipo(nuevo) }
             mostrarExito()
             true
         }
@@ -152,7 +155,9 @@ class EquipoViewModel(
     suspend fun actualizarEquipo(): Boolean {
         if (!_isButtonEnabled.value) return false
         return enViewModelScope {
-            equipoDao.update(construirEquipo())
+            val actualizado = construirEquipo()
+            equipoDao.update(actualizado)
+            runCatching { SupabaseClient.api.actualizarEquipo("eq.${actualizado.id}", actualizado) }
             mostrarExito()
             true
         }
