@@ -4,15 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atzael.proyectosemestralg11.data.EquipoDao
 import com.atzael.proyectosemestralg11.data.FotoDao
-import com.atzael.proyectosemestralg11.data.remote.SupabaseClient
-import com.atzael.proyectosemestralg11.util.enViewModelScope
 import com.atzael.proyectosemestralg11.data.OrdenTrabajoDao
 import com.atzael.proyectosemestralg11.data.UsuarioDao
+import com.atzael.proyectosemestralg11.data.remote.SupabaseClient
 import com.atzael.proyectosemestralg11.model.EstadoOrden
 import com.atzael.proyectosemestralg11.model.FotoOrden
 import com.atzael.proyectosemestralg11.model.OrdenConDetalle
 import com.atzael.proyectosemestralg11.model.OrdenTrabajo
 import com.atzael.proyectosemestralg11.model.PrioridadOrden
+import com.atzael.proyectosemestralg11.util.comprimirFotoABase64
+import com.atzael.proyectosemestralg11.util.enViewModelScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,16 +64,29 @@ class TecnicoViewModel(
         initialValue = emptyList()
     )
 
-    // null mientras se consulta; true/false según haya aceptado el aviso de datos (HU-22)
-    private val _avisoAceptado = MutableStateFlow<Boolean?>(null)
-    val avisoAceptado: StateFlow<Boolean?> = _avisoAceptado.asStateFlow()
+    private fun rangoPrioridad(prioridad: String): Int = when (prioridad) {
+        PrioridadOrden.ALTA -> 1
+        PrioridadOrden.MEDIA -> 2
+        else -> 3
+    }
 
     private val _nombre = MutableStateFlow("")
     val nombre: StateFlow<String> = _nombre.asStateFlow()
 
-    // ---------- Fotos de la OT abierta en pantalla ----------
+    private val _avisoAceptado = MutableStateFlow(false)
+    val avisoAceptado: StateFlow<Boolean> = _avisoAceptado.asStateFlow()
+
+    // ---------- Detalle de la OT seleccionada ----------
 
     private val _ordenSeleccionadaId = MutableStateFlow<Int?>(null)
+
+    val ordenSeleccionada: StateFlow<OrdenConDetalle?> = _ordenSeleccionadaId
+        .flatMapLatest { id -> if (id == null) flowOf(null) else ordenDao.getConDetalle(id) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
 
     val fotos: StateFlow<List<FotoOrden>> = _ordenSeleccionadaId
         .flatMapLatest { id -> if (id == null) flowOf(emptyList()) else fotoDao.getByOrden(id) }
@@ -115,6 +129,8 @@ class TecnicoViewModel(
         viewModelScope.launch {
             usuarioDao.aceptarAvisoDatos(rut)
             _avisoAceptado.value = true
+            // Supabase manda al sincronizar: si no se guarda allá, la descarga lo volvería a "no aceptado"
+            runCatching { SupabaseClient.api.actualizarUsuario("eq.$rut", mapOf("aviso_datos_aceptado" to true)) }
         }
     }
 
@@ -257,8 +273,15 @@ class TecnicoViewModel(
             return
         }
         viewModelScope.launch {
-            fotoDao.insert(FotoOrden(ordenId = orden.id, ruta = ruta, tipo = tipo, tomadaPor = orden.tecnicoRut))
+            val nuevaFoto = FotoOrden(ordenId = orden.id, ruta = ruta, tipo = tipo, tomadaPor = orden.tecnicoRut)
+            val id = fotoDao.insert(nuevaFoto).toInt()
             anunciar("Foto guardada")
+
+            // Se sube comprimida con el mismo id local: si se vuelve a enviar, Supabase la ignora
+            val base64 = comprimirFotoABase64(ruta)
+            if (base64 != null) {
+                runCatching { SupabaseClient.api.crearFotoOrden(nuevaFoto.copy(id = id, ruta = base64)) }
+            }
         }
     }
 
@@ -277,29 +300,24 @@ class TecnicoViewModel(
         materiales = _materiales.value.trim().ifBlank { null }
     )
 
-    // Sin aceptar el aviso no se recopila ubicación ni fotos
-    private fun avisoAceptado(): Boolean {
-        if (_avisoAceptado.value == true) return true
-        _error.value = "Debe aceptar el aviso de datos personales para registrar ubicación y fotos"
-        return false
+    private fun hoyUtc(): Long = LocalDate.now().atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+
+    private fun anunciar(mensaje: String) {
+        viewModelScope.launch {
+            _mensajeExito.value = mensaje
+            delay(2000)
+            _mensajeExito.value = null
+        }
     }
 
-    private fun hoyUtc(): Long =
-        LocalDate.now().atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-
-    private suspend fun anunciar(texto: String) {
-        _mensajeExito.value = texto
-        delay(2000)
-        _mensajeExito.value = null
+    private fun avisoAceptado(): Boolean {
+        if (!_avisoAceptado.value) {
+            _error.value = "Para continuar debe aceptar el aviso de datos que se recopilan."
+        }
+        return _avisoAceptado.value
     }
 
     companion object {
-        val ESTADOS_ABIERTOS = listOf(EstadoOrden.PENDIENTE, EstadoOrden.ACEPTADA, EstadoOrden.EN_CURSO)
-
-        fun rangoPrioridad(prioridad: String): Int = when (prioridad) {
-            PrioridadOrden.ALTA -> 0
-            PrioridadOrden.MEDIA -> 1
-            else -> 2
-        }
+        private val ESTADOS_ABIERTOS = listOf(EstadoOrden.ACEPTADA, EstadoOrden.EN_CURSO)
     }
 }

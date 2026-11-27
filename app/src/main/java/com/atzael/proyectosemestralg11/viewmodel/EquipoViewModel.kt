@@ -122,8 +122,9 @@ class EquipoViewModel(
         if (!_isButtonEnabled.value) return false
         return enViewModelScope {
             val nuevo = construirEquipo().copy(id = 0)
-            equipoDao.insert(nuevo)
-            runCatching { SupabaseClient.api.crearEquipo(nuevo) }
+            // Se envía a Supabase con el id real que asignó Room (nunca con id = 0)
+            val id = equipoDao.insert(nuevo).toInt()
+            runCatching { SupabaseClient.api.crearEquipo(nuevo.copy(id = id)) }
             mostrarExito()
             true
         }

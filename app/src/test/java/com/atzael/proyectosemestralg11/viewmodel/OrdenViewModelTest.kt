@@ -109,7 +109,7 @@ class OrdenViewModelTest {
         completarFormulario()
         viewModel.onPrioridadChange(PrioridadOrden.ALTA)
         val guardada = slot<OrdenTrabajo>()
-        coEvery { ordenDao.insert(capture(guardada)) } returns Unit
+        coEvery { ordenDao.insert(capture(guardada)) } returns 1L
 
         viewModel.registrarOrden("88888888-8")
 
@@ -152,7 +152,7 @@ class OrdenViewModelTest {
         val original = orden(8, EstadoOrden.PENDIENTE, PrioridadOrden.MEDIA).orden
         val actualizada = slot<OrdenTrabajo>()
         val historial = slot<Reprogramacion>()
-        coEvery { ordenDao.reprogramar(capture(actualizada), capture(historial)) } returns Unit
+        coEvery { ordenDao.reprogramar(capture(actualizada), capture(historial)) } returns 1L
 
         viewModel.reagendarOrden(original, 5_000L, "22222222-2", MotivoReagendar.CLIMA)
 

@@ -8,22 +8,15 @@ class SupabaseConnectionTest {
 
     @Test
     fun testConexionSupabase() = runBlocking {
-        println("=== PROBANDO CONEXIÓN A SUPABASE CON RETROFIT ===")
+        println("=== PROBANDO CONEXIÓN A SUPABASE ===")
         try {
-            val usuarios = SupabaseClient.api.getUsuarios()
-            println("✅ CONEXIÓN Y AUTENTICACIÓN EXITOSA!")
-            println("Usuarios encontrados en Supabase: ${usuarios.size}")
-            usuarios.forEach { u ->
-                println("  • RUT: ${u.rut} | Nombre: ${u.nombre} ${u.apellido} | Rol: ${u.rol}")
-            }
-
-            val clientes = SupabaseClient.api.getClientes()
-            println("Clientes encontrados en Supabase: ${clientes.size}")
-            clientes.forEach { c ->
-                println("  • ID: ${c.id} | Nombre: ${c.nombre} | Contacto: ${c.contacto}")
+            val fotos = SupabaseClient.api.getFotosOrden()
+            println("TOTAL DE FOTOS EN SUPABASE: ${fotos.size}")
+            fotos.forEach { f ->
+                println("  • ID: ${f.id} | Tipo: ${f.tipo} | Orden: ${f.ordenId}")
             }
         } catch (e: Exception) {
-            println("❌ DETALLE DE ERROR: ${e.message}")
+            println(" ERROR: ${e.message}")
             throw e
         }
     }

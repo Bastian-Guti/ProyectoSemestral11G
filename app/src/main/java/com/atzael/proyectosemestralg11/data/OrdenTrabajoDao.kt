@@ -2,10 +2,10 @@ package com.atzael.proyectosemestralg11.data
 
 import androidx.room.Dao
 import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import androidx.room.Upsert
 import com.atzael.proyectosemestralg11.model.OrdenConDetalle
 import com.atzael.proyectosemestralg11.model.OrdenTrabajo
 import com.atzael.proyectosemestralg11.model.Reprogramacion
@@ -29,8 +29,14 @@ private const val SELECT_DETALLE = """
 
 @Dao
 abstract class OrdenTrabajoDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    abstract suspend fun insert(orden: OrdenTrabajo)
+    // Crea una OT nueva y devuelve el id que le asignó Room
+    @Insert
+    abstract suspend fun insert(orden: OrdenTrabajo): Long
+
+    // Sincronización: actualiza si existe o inserta si no.
+    // No usa REPLACE porque eso borra la fila y, en cascada, sus fotos y reprogramaciones.
+    @Upsert
+    abstract suspend fun upsert(orden: OrdenTrabajo)
 
     @Update
     abstract suspend fun update(orden: OrdenTrabajo)
@@ -57,15 +63,22 @@ abstract class OrdenTrabajoDao {
     abstract fun getConDetalle(id: Int): Flow<OrdenConDetalle?>
 
     @Insert
-    abstract suspend fun insertReprogramacion(reprogramacion: Reprogramacion)
+    abstract suspend fun insertReprogramacion(reprogramacion: Reprogramacion): Long
+
+    @Upsert
+    abstract suspend fun upsertReprogramacion(reprogramacion: Reprogramacion)
 
     @Query("SELECT * FROM reprogramaciones WHERE ordenId = :ordenId ORDER BY id DESC")
     abstract fun getReprogramaciones(ordenId: Int): Flow<List<Reprogramacion>>
 
-    // Actualiza la OT y deja el registro del cambio en una sola transacción
+    @Query("SELECT * FROM reprogramaciones")
+    abstract suspend fun getAllReprogramaciones(): List<Reprogramacion>
+
+    // Actualiza la OT y deja el registro del cambio en una sola transacción.
+    // Devuelve el id de la reprogramación creada.
     @Transaction
-    open suspend fun reprogramar(orden: OrdenTrabajo, reprogramacion: Reprogramacion) {
+    open suspend fun reprogramar(orden: OrdenTrabajo, reprogramacion: Reprogramacion): Long {
         update(orden)
-        insertReprogramacion(reprogramacion)
+        return insertReprogramacion(reprogramacion)
     }
 }

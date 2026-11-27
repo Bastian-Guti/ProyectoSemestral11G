@@ -3,9 +3,9 @@ package com.atzael.proyectosemestralg11.data
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import com.atzael.proyectosemestralg11.model.Equipo
 import kotlinx.coroutines.flow.Flow
 
@@ -17,8 +17,13 @@ interface EquipoDao {
     @Query("SELECT * FROM equipos WHERE id = :id LIMIT 1")
     suspend fun getById(id: Int): Equipo?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(equipo: Equipo)
+    // Crea un registro nuevo y devuelve el id que le asignó Room
+    @Insert
+    suspend fun insert(equipo: Equipo): Long
+
+    // Sincronización: actualiza si existe o inserta si no, sin borrar la fila ni sus dependientes
+    @Upsert
+    suspend fun upsert(equipo: Equipo)
 
     @Update
     suspend fun update(equipo: Equipo)

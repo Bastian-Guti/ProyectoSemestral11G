@@ -119,8 +119,9 @@ class ClienteViewModel(private val clienteDao: ClienteDao) : ViewModel() {
         if (!_isButtonEnabled.value) return false
         return enViewModelScope {
             val nuevo = construirCliente().copy(id = 0)
-            clienteDao.insert(nuevo)
-            runCatching { SupabaseClient.api.crearCliente(nuevo) }
+            // Se envía a Supabase con el id real que asignó Room (nunca con id = 0)
+            val id = clienteDao.insert(nuevo).toInt()
+            runCatching { SupabaseClient.api.crearCliente(nuevo.copy(id = id)) }
             mostrarExito()
             true
         }

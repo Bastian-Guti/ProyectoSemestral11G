@@ -237,8 +237,9 @@ class OrdenViewModel(
                 fechaVisita = _fechaVisita.value!!,
                 creadaPor = creadaPor
             )
-            ordenDao.insert(nueva)
-            runCatching { SupabaseClient.api.crearOrdenTrabajo(nueva) }
+            // Se envía a Supabase con el id real que asignó Room (nunca con id = 0)
+            val id = ordenDao.insert(nueva).toInt()
+            runCatching { SupabaseClient.api.crearOrdenTrabajo(nueva.copy(id = id)) }
             mostrarToast()
             resetForm()
             true
@@ -351,18 +352,17 @@ class OrdenViewModel(
             estado = estado,
             motivoRechazo = if (estado == EstadoOrden.PENDIENTE) null else orden.motivoRechazo
         )
-        ordenDao.reprogramar(
-            actualizada,
-            Reprogramacion(
-                ordenId = orden.id,
-                fechaAnterior = orden.fechaVisita,
-                fechaNueva = nuevaFecha,
-                tecnicoAnterior = orden.tecnicoRut,
-                tecnicoNuevo = nuevoTecnicoRut,
-                motivo = motivo
-            )
+        val repo = Reprogramacion(
+            ordenId = orden.id,
+            fechaAnterior = orden.fechaVisita,
+            fechaNueva = nuevaFecha,
+            tecnicoAnterior = orden.tecnicoRut,
+            tecnicoNuevo = nuevoTecnicoRut,
+            motivo = motivo
         )
+        val repoId = ordenDao.reprogramar(actualizada, repo).toInt()
         runCatching { SupabaseClient.api.actualizarOrdenTrabajo("eq.${actualizada.id}", actualizada) }
+        runCatching { SupabaseClient.api.crearReprogramacion(repo.copy(id = repoId)) }
         mostrarToast()
     }
 

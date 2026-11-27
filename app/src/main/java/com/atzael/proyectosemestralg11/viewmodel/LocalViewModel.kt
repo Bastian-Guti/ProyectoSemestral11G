@@ -122,8 +122,9 @@ class LocalViewModel(
         if (!_isButtonEnabled.value) return false
         return enViewModelScope {
             val nuevo = construirLocal().copy(id = 0)
-            localDao.insert(nuevo)
-            runCatching { SupabaseClient.api.crearLocal(nuevo) }
+            // Se envía a Supabase con el id real que asignó Room (nunca con id = 0)
+            val id = localDao.insert(nuevo).toInt()
+            runCatching { SupabaseClient.api.crearLocal(nuevo.copy(id = id)) }
             mostrarExito()
             true
         }
