@@ -14,6 +14,9 @@ interface ClienteDao {
     @Query("SELECT * FROM clientes ORDER BY nombre")
     fun getAll(): Flow<List<Cliente>>
 
+    @Query("SELECT * FROM clientes")
+    suspend fun getAllList(): List<Cliente>
+
     @Query("SELECT * FROM clientes WHERE id = :id LIMIT 1")
     suspend fun getById(id: Int): Cliente?
 

@@ -6,7 +6,9 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import com.atzael.proyectosemestralg11.data.AppDatabase
+import com.atzael.proyectosemestralg11.util.campoRepetidoDeLocal
 import com.atzael.proyectosemestralg11.util.comprimirFotoABase64
+import com.atzael.proyectosemestralg11.util.hayOtroClienteConNombre
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -75,9 +77,11 @@ object SyncManager {
         val remotos = runCatching { SupabaseClient.api.getClientes() }.getOrNull() ?: return
         remotos.filter { it.id != 0 }.forEach { runCatching { db.clienteDao().upsert(it) } }
 
+        // No se sube un cliente si Supabase ya tiene esa empresa (mismo nombre) con otro id
         val idsRemotos = remotos.map { it.id }.toSet()
         db.clienteDao().getAll().first()
             .filter { it.id != 0 && it.id !in idsRemotos }
+            .filterNot { remotos.hayOtroClienteConNombre(it.nombre, it.id) }
             .forEach { runCatching { SupabaseClient.api.crearCliente(it) } }
     }
 
@@ -96,9 +100,11 @@ object SyncManager {
         val remotos = runCatching { SupabaseClient.api.getLocales() }.getOrNull() ?: return
         remotos.filter { it.id != 0 }.forEach { runCatching { db.localDao().upsert(it) } }
 
+        // No se sube un local si ese cliente ya tiene en Supabase uno con el mismo nombre o dirección
         val idsRemotos = remotos.map { it.id }.toSet()
         db.localDao().getAll().first()
             .filter { it.id != 0 && it.id !in idsRemotos }
+            .filter { remotos.campoRepetidoDeLocal(it) == null }
             .forEach { runCatching { SupabaseClient.api.crearLocal(it) } }
     }
 

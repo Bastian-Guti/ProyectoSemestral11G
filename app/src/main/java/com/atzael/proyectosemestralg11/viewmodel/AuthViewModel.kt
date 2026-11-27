@@ -75,7 +75,12 @@ class AuthViewModel(
     ): ResultadoAuth {
         val rutNorm = rut.normalizarRut()
         return enViewModelScope {
-            if (usuarioDao.getUsuarioByRut(rutNorm) != null) {
+            // Una persona = un RUT. Se revisa el teléfono y también Supabase, porque otro
+            // dispositivo pudo registrarlo (Supabase ignoraría el nuevo y luego lo pisaría al sincronizar).
+            val enSupabase = runCatching {
+                SupabaseClient.api.getUsuarioByRut("eq.$rutNorm").isNotEmpty()
+            }.getOrDefault(false)
+            if (enSupabase || usuarioDao.getUsuarioByRut(rutNorm) != null) {
                 ResultadoAuth.Error("El RUT ya está registrado.")
             } else {
                 val nuevoUsuario = Usuario(

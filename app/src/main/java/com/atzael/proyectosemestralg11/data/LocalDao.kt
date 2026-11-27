@@ -14,6 +14,9 @@ interface LocalDao {
     @Query("SELECT * FROM locales ORDER BY nombre")
     fun getAll(): Flow<List<Local>>
 
+    @Query("SELECT * FROM locales WHERE clienteId = :clienteId")
+    suspend fun getByCliente(clienteId: Int): List<Local>
+
     @Query("SELECT * FROM locales WHERE id = :id LIMIT 1")
     suspend fun getById(id: Int): Local?
 

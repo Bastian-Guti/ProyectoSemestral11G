@@ -32,7 +32,33 @@ class ClienteViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         every { clienteDao.getAll() } returns flowOf(emptyList())
-        viewModel = ClienteViewModel(clienteDao)
+        coEvery { clienteDao.getAllList() } returns emptyList()
+        viewModel = ClienteViewModel(clienteDao, clientesRemotos = { emptyList() })
+    }
+
+    @Test
+    fun `no registra un cliente con el mismo nombre que uno existente`() = runTest {
+        coEvery { clienteDao.getAllList() } returns listOf(
+            Cliente(id = 3, nombre = "SUPERMERCADO  sur", contacto = "X", telefono = "+56900000000")
+        )
+        completarFormularioValido()
+
+        val guardado = viewModel.registrarCliente()
+
+        assertFalse(guardado)
+        assertNotNull(viewModel.nombreError.value)
+        coVerify(exactly = 0) { clienteDao.insert(any()) }
+    }
+
+    @Test
+    fun `no registra un cliente que ya existe en Supabase`() = runTest {
+        viewModel = ClienteViewModel(clienteDao, clientesRemotos = {
+            listOf(Cliente(id = 9, nombre = "Supermercado Sur", contacto = "X", telefono = "+56900000000"))
+        })
+        completarFormularioValido()
+
+        assertFalse(viewModel.registrarCliente())
+        coVerify(exactly = 0) { clienteDao.insert(any()) }
     }
 
     @After

@@ -7,6 +7,7 @@ import com.atzael.proyectosemestralg11.data.remote.SupabaseClient
 import com.atzael.proyectosemestralg11.model.Cliente
 import com.atzael.proyectosemestralg11.util.enViewModelScope
 import com.atzael.proyectosemestralg11.util.esTelefonoValido
+import com.atzael.proyectosemestralg11.util.hayOtroClienteConNombre
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,7 +16,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class ClienteViewModel(private val clienteDao: ClienteDao) : ViewModel() {
+class ClienteViewModel(
+    private val clienteDao: ClienteDao,
+    // Clientes en Supabase para revisar duplicados; en los tests se reemplaza para no usar la red
+    private val clientesRemotos: suspend () -> List<Cliente> = { SupabaseClient.api.getClientes() }
+) : ViewModel() {
 
     val clientes: StateFlow<List<Cliente>> = clienteDao.getAll()
         .stateIn(
@@ -119,12 +124,24 @@ class ClienteViewModel(private val clienteDao: ClienteDao) : ViewModel() {
         if (!_isButtonEnabled.value) return false
         return enViewModelScope {
             val nuevo = construirCliente().copy(id = 0)
+            if (nombreRepetido(nuevo)) return@enViewModelScope false
             // Se envía a Supabase con el id real que asignó Room (nunca con id = 0)
             val id = clienteDao.insert(nuevo).toInt()
             runCatching { SupabaseClient.api.crearCliente(nuevo.copy(id = id)) }
             mostrarExito()
             true
         }
+    }
+
+    // Una empresa no puede registrarse dos veces. Se revisa el teléfono y, si hay conexión, Supabase.
+    private suspend fun nombreRepetido(cliente: Cliente): Boolean {
+        val remotos = runCatching { clientesRemotos() }.getOrDefault(emptyList())
+        val repetido = (clienteDao.getAllList() + remotos).hayOtroClienteConNombre(cliente.nombre, cliente.id)
+        if (repetido) {
+            _nombreError.value = "Ya existe un cliente con ese nombre"
+            validate()
+        }
+        return repetido
     }
 
     private suspend fun mostrarExito() {
@@ -152,6 +169,7 @@ class ClienteViewModel(private val clienteDao: ClienteDao) : ViewModel() {
         if (!_isButtonEnabled.value) return false
         return enViewModelScope {
             val actualizado = construirCliente()
+            if (nombreRepetido(actualizado)) return@enViewModelScope false
             clienteDao.update(actualizado)
             runCatching { SupabaseClient.api.actualizarCliente("eq.${actualizado.id}", actualizado) }
             mostrarExito()

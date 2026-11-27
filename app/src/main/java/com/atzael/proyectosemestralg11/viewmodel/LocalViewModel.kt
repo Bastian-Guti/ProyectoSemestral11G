@@ -8,6 +8,8 @@ import com.atzael.proyectosemestralg11.data.remote.SupabaseClient
 import com.atzael.proyectosemestralg11.model.Cliente
 import com.atzael.proyectosemestralg11.model.Local
 import com.atzael.proyectosemestralg11.util.enViewModelScope
+import com.atzael.proyectosemestralg11.util.CampoRepetido
+import com.atzael.proyectosemestralg11.util.campoRepetidoDeLocal
 import com.atzael.proyectosemestralg11.util.esTelefonoValido
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +21,9 @@ import kotlinx.coroutines.launch
 
 class LocalViewModel(
     private val localDao: LocalDao,
-    clienteDao: ClienteDao
+    clienteDao: ClienteDao,
+    // Locales en Supabase para revisar duplicados; en los tests se reemplaza para no usar la red
+    private val localesRemotos: suspend () -> List<Local> = { SupabaseClient.api.getLocales() }
 ) : ViewModel() {
 
     val locales: StateFlow<List<Local>> = localDao.getAll()
@@ -122,12 +126,27 @@ class LocalViewModel(
         if (!_isButtonEnabled.value) return false
         return enViewModelScope {
             val nuevo = construirLocal().copy(id = 0)
+            if (localRepetido(nuevo)) return@enViewModelScope false
             // Se envía a Supabase con el id real que asignó Room (nunca con id = 0)
             val id = localDao.insert(nuevo).toInt()
             runCatching { SupabaseClient.api.crearLocal(nuevo.copy(id = id)) }
             mostrarExito()
             true
         }
+    }
+
+    // Un mismo cliente no puede tener dos locales con el mismo nombre o la misma dirección.
+    // Se revisa el teléfono y, si hay conexión, Supabase.
+    private suspend fun localRepetido(local: Local): Boolean {
+        val remotos = runCatching { localesRemotos() }.getOrDefault(emptyList())
+        val campo = (localDao.getByCliente(local.clienteId) + remotos).campoRepetidoDeLocal(local)
+        when (campo) {
+            CampoRepetido.NOMBRE -> _nombreError.value = "Este cliente ya tiene un local con ese nombre"
+            CampoRepetido.DIRECCION -> _direccionError.value = "Este cliente ya tiene un local en esa dirección"
+            null -> return false
+        }
+        validate()
+        return true
     }
 
     private suspend fun mostrarExito() {
@@ -155,6 +174,7 @@ class LocalViewModel(
         if (!_isButtonEnabled.value) return false
         return enViewModelScope {
             val actualizado = construirLocal()
+            if (localRepetido(actualizado)) return@enViewModelScope false
             localDao.update(actualizado)
             runCatching { SupabaseClient.api.actualizarLocal("eq.${actualizado.id}", actualizado) }
             mostrarExito()
